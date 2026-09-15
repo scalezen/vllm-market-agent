@@ -1,0 +1,21 @@
+name: ml_env
+channels:
+  - pytorch
+  - conda-forge
+dependencies:
+  - python=3.11          # You can change this to 3.10 or 3.12 if needed
+  - pytorch
+  - torchvision
+  - torchaudio
+  - pytest
+  - scipy
+  - black
+  - loguru
+  - ruff>=0.6
+  - black>=24.0
+  - mypy>=1.10
+  - pip
+  - pip: 
+      - vllm-mlx
+      - openai
+      - yfinance
