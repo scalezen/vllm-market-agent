@@ -1,21 +1,21 @@
-name: ml_env
+# Environment for vllm-market-agent (Apple Silicon / arm64 only).
+#
+# Create:  conda env create -f environment.yaml
+# Update:  conda env update -f environment.yaml --prune
+name: vllm-market-agent
 channels:
-  - pytorch
   - conda-forge
+  - nodefaults
 dependencies:
-  - python=3.11          # You can change this to 3.10 or 3.12 if needed
-  - pytorch
-  - torchvision
-  - torchaudio
+  - python=3.11
+  - pip
+  # dev tooling (no compiled numeric dependencies)
   - pytest
-  - scipy
-  - black
-  - loguru
   - ruff>=0.6
   - black>=24.0
   - mypy>=1.10
-  - pip
-  - pip: 
-      - vllm-mlx
+  - loguru
+  - pip:
+      - vllm-mlx   # brings mlx, mlx-lm, transformers, torch, torchvision
       - openai
       - yfinance
