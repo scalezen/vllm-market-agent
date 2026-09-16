@@ -1,7 +1,20 @@
 #!/usr/bin/env bash
 # Start the local vLLM-MLX server with tool calling enabled.
 # Port 8010 matches the default VLLM_BASE_URL in sentiment_agent.py (vllm-mlx's own default is 8000).
-exec vllm-mlx serve mlx-community/Llama-3.2-3B-Instruct-4bit \
-  --port 8010 \
+#
+# Default model: Qwen3-4B (4-bit, ~2.3 GB) - more reliable tool calling than Llama 3.2 3B.
+# --reasoning-parser qwen3 moves Qwen3's <think>...</think> text out of the
+# answer into a separate `reasoning` field, so the printed analysis stays clean.
+#
+# Override without editing, e.g. the smaller model:
+#   MODEL=mlx-community/Qwen3-1.7B-4bit ./serve.sh
+# (then run the agent with VLLM_MODEL set to the same model name)
+MODEL="${MODEL:-mlx-community/Qwen3-4B-4bit}"
+PARSER="${PARSER:-qwen}"
+PORT="${PORT:-8010}"
+
+exec vllm-mlx serve "$MODEL" \
+  --port "$PORT" \
   --enable-auto-tool-choice \
-  --tool-call-parser llama
+  --tool-call-parser "$PARSER" \
+  --reasoning-parser qwen3

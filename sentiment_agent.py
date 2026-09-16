@@ -7,11 +7,12 @@ import json
 import os
 import sys
 
+from loguru import logger
 import yfinance as yf
 from openai import APIConnectionError, OpenAI
 
 BASE_URL = os.environ.get("VLLM_BASE_URL", "http://127.0.0.1:8010/v1")
-MODEL_NAME = os.environ.get("VLLM_MODEL", "mlx-community/Llama-3.2-3B-Instruct-4bit")
+MODEL_NAME = os.environ.get("VLLM_MODEL", "mlx-community/Qwen3-4B-4bit")
 MAX_STEPS = 5
 
 client = OpenAI(base_url=BASE_URL, api_key="local-dev")  # vLLM ignores the key
@@ -72,20 +73,72 @@ def check_server() -> None:
         sys.exit(f"Model '{MODEL_NAME}' is not served. Server has: {served}")
 
 
+def final_answer(messages: list) -> str:
+    """Request the written analysis with tools switched off."""
+    logger.warning("Empty answer after tool use; retrying without tools")
+    response = client.chat.completions.create(
+        model=MODEL_NAME,
+        messages=messages
+        + [{
+            "role": "user",
+            "content": "Using only the headlines returned above, give the sentiment "
+            "(Bullish, Bearish, or Neutral) and a one-sentence justification.",
+        }],
+    )
+    content = response.choices[0].message.content or ""
+    logger.info(
+        "Final retry: finish_reason={} content={!r}",
+        response.choices[0].finish_reason,
+        content,
+    )
+    return content
+
+
 def run_agent(ticker: str) -> str:
     messages = [
         {"role": "system", "content": SYSTEM_PROMPT},
         {"role": "user", "content": f"Can you check the current sentiment for {ticker}?"},
     ]
-    for _ in range(MAX_STEPS):
+    for step in range(MAX_STEPS):
         print("Thinking...")
+        # A 3B model often answers from memory instead of calling a tool, so
+        # force a tool call on the first step; afterwards let the model decide.
+        tool_choice = "required" if step == 0 else "auto"
         response = client.chat.completions.create(
-            model=MODEL_NAME, messages=messages, tools=TOOLS, tool_choice="auto"
+            model=MODEL_NAME, messages=messages, tools=TOOLS, tool_choice=tool_choice
         )
         message = response.choices[0].message
 
         if not message.tool_calls:
-            return message.content or ""
+            if step == 0:
+                # The server could not parse a tool call from the model output.
+                logger.warning(
+                    "Step 0: no tool call parsed. finish_reason={} raw content={!r}",
+                    response.choices[0].finish_reason,
+                    message.content,
+                )
+            else:
+                # Normal exit: the model has the observations and gives its answer.
+                logger.info(
+                    "Step {}: final answer, finish_reason={} content={!r}",
+                    step,
+                    response.choices[0].finish_reason,
+                    message.content,
+                )
+            if message.content and message.content.strip():
+                return message.content
+            if step > 0:
+                # Small Llama models often emit an empty turn after a tool
+                # result while tools are still offered. Ask once more, with no
+                # tools, so the model must answer in plain text.
+                return final_answer(messages)
+            return ""
+
+        logger.info(
+            "Step {}: tool calls {}",
+            step,
+            [(c.function.name, c.function.arguments) for c in message.tool_calls],
+        )
 
         messages.append(message.model_dump(exclude_none=True))
         for call in message.tool_calls:
@@ -93,6 +146,7 @@ def run_agent(ticker: str) -> str:
             try:
                 args = json.loads(call.function.arguments or "{}")
                 observation = fn(**args) if fn else f"Unknown tool: {call.function.name}"
+                logger.info(f"Observation is : {observation}")
             except (json.JSONDecodeError, TypeError) as exc:
                 observation = f"Bad tool arguments: {exc}"
             messages.append({"role": "tool", "tool_call_id": call.id, "content": observation})
