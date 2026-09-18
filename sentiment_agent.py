@@ -13,7 +13,12 @@ import asyncio
 import json
 import os
 import sys
+import threading
+import time
+from contextvars import ContextVar
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
+from functools import lru_cache
 from typing import Literal
 
 import numpy as np
@@ -40,9 +45,82 @@ aclient = AsyncOpenAI(base_url=BASE_URL, api_key="local-dev")  # vLLM ignores th
 llm_slots = asyncio.Semaphore(LLM_CONCURRENCY)
 
 
+# --------------------------------------------------------------------------
+# Token accounting
+# --------------------------------------------------------------------------
+@lru_cache(maxsize=1)
+def _tokenizer():
+    """The served model's tokenizer (from the local HF cache), or None if unavailable."""
+    try:
+        from transformers import AutoTokenizer
+
+        return AutoTokenizer.from_pretrained(MODEL_NAME, local_files_only=True)
+    except Exception as exc:
+        logger.warning("Tokenizer unavailable ({}); thinking tokens will be estimated", exc)
+        return None
+
+
+def count_tokens(text: str) -> int:
+    """Token count of `text`; ~4 chars/token estimate if the tokenizer cannot be loaded."""
+    if not text:
+        return 0
+    tok = _tokenizer()
+    return len(tok.encode(text, add_special_tokens=False)) if tok else max(1, len(text) // 4)
+
+
+@dataclass
+class Usage:
+    """Token and timing totals for one ticker (updated from the event loop and tool threads)."""
+
+    prompt_tokens: int = 0
+    completion_tokens: int = 0  # includes thinking_tokens
+    thinking_tokens: int = 0
+    embedding_tokens: int = 0
+    llm_seconds: float = 0.0  # time inside generation requests, excluding queueing for a slot
+    _lock: threading.Lock = field(default_factory=threading.Lock, repr=False)
+
+    def add_chat(self, response, seconds: float) -> None:
+        u = response.usage
+        message = response.choices[0].message
+        # vllm-mlx returns thinking as `reasoning_content` and folds it into completion_tokens.
+        extra = message.model_extra or {}
+        thinking = count_tokens(extra.get("reasoning_content") or extra.get("reasoning") or "")
+        with self._lock:
+            self.prompt_tokens += u.prompt_tokens if u else 0
+            self.completion_tokens += u.completion_tokens if u else 0
+            self.thinking_tokens += thinking
+            self.llm_seconds += seconds
+
+    def add_embedding(self, response) -> None:
+        with self._lock:
+            self.embedding_tokens += response.usage.total_tokens if response.usage else 0
+
+    def as_dict(self, wall_seconds: float) -> dict:
+        total = self.prompt_tokens + self.completion_tokens + self.embedding_tokens
+        return {
+            "prompt_tokens": self.prompt_tokens,
+            "completion_tokens": self.completion_tokens,
+            "thinking_tokens": self.thinking_tokens,  # subset of completion_tokens
+            "embedding_tokens": self.embedding_tokens,
+            "total_tokens": total,
+            "llm_seconds": round(self.llm_seconds, 2),
+            "wall_seconds": round(wall_seconds, 2),
+            # generated tokens (thinking included) per second of model time
+            "tokens_per_second": round(self.completion_tokens / self.llm_seconds, 1) if self.llm_seconds else None,
+        }
+
+
+# Set per ticker in run_agent; asyncio.to_thread copies the context, so tools see it too.
+current_usage: ContextVar[Usage | None] = ContextVar("current_usage", default=None)
+
+
 async def chat(**kwargs):
     async with llm_slots:
-        return await aclient.chat.completions.create(model=MODEL_NAME, **kwargs)
+        start = time.perf_counter()
+        response = await aclient.chat.completions.create(model=MODEL_NAME, **kwargs)
+        if usage := current_usage.get():
+            usage.add_chat(response, time.perf_counter() - start)
+        return response
 
 
 # --------------------------------------------------------------------------
@@ -84,7 +162,10 @@ def dedup_headlines(headlines: list[str], threshold: float = DEDUP_THRESHOLD) ->
     if len(headlines) < 2:
         return headlines
     try:
-        data = client.embeddings.create(model=EMBED_MODEL, input=headlines).data
+        response = client.embeddings.create(model=EMBED_MODEL, input=headlines)
+        if usage := current_usage.get():
+            usage.add_embedding(response)
+        data = response.data
         vecs = np.array([d.embedding for d in sorted(data, key=lambda d: d.index)], dtype=float)
     except Exception as exc:  # no embedding model, connection error, ...
         logger.warning("Embedding dedup unavailable ({}); using exact-match dedup", exc)
@@ -282,6 +363,9 @@ async def run_tool(call) -> str:
 
 async def run_agent(ticker: str) -> dict:
     """Run the tool loop, then return the structured report as a dict."""
+    usage = Usage()
+    current_usage.set(usage)
+    started = time.perf_counter()
     messages = [
         {"role": "system", "content": SYSTEM_PROMPT},
         {"role": "user", "content": f"Can you check the current sentiment for {ticker}?"},
@@ -319,6 +403,7 @@ async def run_agent(ticker: str) -> dict:
     return {
         "ticker": ticker,
         **report.model_dump(),
+        "usage": usage.as_dict(time.perf_counter() - started),
         "timestamp": datetime.now(timezone.utc).isoformat(timespec="seconds"),
     }
 
@@ -365,6 +450,14 @@ def main() -> None:
     results = asyncio.run(run_watchlist(tickers, args.concurrency))
 
     print(json.dumps(results[0] if len(results) == 1 else results, indent=2))
+    usages = [r["usage"] for r in results if "usage" in r]
+    if usages:
+        logger.info(
+            "Batch total: {} tokens ({} thinking) across {} tickers",
+            sum(u["total_tokens"] for u in usages),
+            sum(u["thinking_tokens"] for u in usages),
+            len(usages),
+        )
     if args.out:
         with open(args.out, "a") as f:
             f.writelines(json.dumps(r) + "\n" for r in results)
