@@ -12,9 +12,13 @@
 MODEL="${MODEL:-mlx-community/Qwen3-4B-4bit}"
 PARSER="${PARSER:-qwen}"
 PORT="${PORT:-8010}"
+# Embedding model served on /v1/embeddings; the agent uses it to de-duplicate headlines.
+# (Set the same EMBED_MODEL when running the agent if you change it.)
+EMBED_MODEL="${EMBED_MODEL:-mlx-community/embeddinggemma-300m-6bit}"
 
 exec vllm-mlx serve "$MODEL" \
   --port "$PORT" \
   --enable-auto-tool-choice \
   --tool-call-parser "$PARSER" \
-  --reasoning-parser qwen3
+  --reasoning-parser qwen3 \
+  --embedding-model "$EMBED_MODEL"
