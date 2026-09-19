@@ -8,17 +8,23 @@ Start the server first (see serve.sh), then run:
 Per ticker the model calls three tools (news, technical indicators, analyst
 recommendations), then writes a JSON report constrained to SentimentReport.
 
+Every successful run is saved under runs/<date>/ (see store.py); score them
+against later price moves with backtest.py.
+
 Layout: config.py (settings, clients), usage.py (token accounting),
-tools.py (tools the model calls), agent.py (agent loop); this file is the CLI.
+tools.py (tools the model calls), agent.py (agent loop), store.py (run store),
+backtest.py (scoring); this file is the CLI.
 """
 import argparse
 import asyncio
 import json
+from pathlib import Path
 
 from loguru import logger
 
 from agent import check_server, run_watchlist
 from config import DEFAULT_CONCURRENCY
+from store import RUNS_DIR, save_run
 
 
 def load_tickers(args: argparse.Namespace) -> list[str]:
@@ -38,11 +44,20 @@ def main() -> None:
     parser.add_argument("--watchlist", help="file with one ticker per line")
     parser.add_argument("--concurrency", type=int, default=DEFAULT_CONCURRENCY, help="parallel tickers")
     parser.add_argument("--out", help="append results to this JSONL file")
+    parser.add_argument("--runs-dir", type=Path, default=RUNS_DIR, help="where each run is stored (for backtest.py)")
+    parser.add_argument("--no-save", action="store_true", help="do not write runs to the run store")
     args = parser.parse_args()
 
     tickers = load_tickers(args)
     check_server()
     results = asyncio.run(run_watchlist(tickers, args.concurrency))
+
+    if not args.no_save:
+        for r in results:
+            if "usage" in r:  # skip failed tickers
+                save_run(r, args.runs_dir)
+    # tool_outputs are kept in the run store, not printed
+    results = [{k: v for k, v in r.items() if k != "tool_outputs"} for r in results]
 
     print(json.dumps(results[0] if len(results) == 1 else results, indent=2))
     usages = [r["usage"] for r in results if "usage" in r]
