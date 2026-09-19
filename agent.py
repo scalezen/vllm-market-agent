@@ -99,6 +99,7 @@ async def run_agent(ticker: str) -> dict:
         {"role": "system", "content": SYSTEM_PROMPT},
         {"role": "user", "content": f"Can you check the current sentiment for {ticker}?"},
     ]
+    tool_outputs: dict[str, str] = {}
     for step in range(MAX_STEPS):
         # A small model often answers from memory instead of calling a tool, so
         # force a tool call on the first step; afterwards let the model decide.
@@ -118,6 +119,7 @@ async def run_agent(ticker: str) -> dict:
         observations = await asyncio.gather(*(run_tool(c) for c in message.tool_calls))
         for call, observation in zip(message.tool_calls, observations):
             logger.debug("{} <- {}", call.function.name, observation)
+            tool_outputs[call.function.name] = observation
             messages.append({"role": "tool", "tool_call_id": call.id, "content": observation})
     else:
         logger.warning("{}: hit MAX_STEPS; requesting the report with what was gathered", ticker)
@@ -132,6 +134,8 @@ async def run_agent(ticker: str) -> dict:
     return {
         "ticker": ticker,
         **report.model_dump(),
+        "model": MODEL_NAME,
+        "tool_outputs": tool_outputs,
         "usage": usage.as_dict(time.perf_counter() - started),
         "timestamp": datetime.now(timezone.utc).isoformat(timespec="seconds"),
     }
