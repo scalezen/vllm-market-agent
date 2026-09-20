@@ -9,6 +9,9 @@ MODEL_NAME = os.environ.get("VLLM_MODEL", "mlx-community/Qwen3-4B-4bit")
 EMBED_MODEL = os.environ.get("EMBED_MODEL", "mlx-community/embeddinggemma-300m-6bit")
 # Headlines with cosine similarity at or above this are treated as the same story.
 DEDUP_THRESHOLD = float(os.environ.get("DEDUP_THRESHOLD", "0.85"))
+# Freshness windows for tool data.
+NEWS_MAX_AGE_DAYS = 7
+ANALYST_CHANGES_MAX_AGE_DAYS = 30  # about 1 month, to match the 0m ratings snapshot
 MAX_STEPS = 6
 DEFAULT_CONCURRENCY = 4
 # vllm-mlx's default engine runs one generation at a time and answers 503 to the

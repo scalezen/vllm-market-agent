@@ -3,9 +3,11 @@
     python backtest.py                         # 1, 5 and 20 trading-day horizons
     python backtest.py --horizons 5 10 --csv scored.csv --runs-dir runs
 
-For each stored run the entry price is the last close the agent could have
-seen when it ran (the previous session's close, or the same day's if it ran
-after the close). The forward return is measured N trading days after that.
+For each stored run the entry price is the last final close the agent saw: the
+`as_of` date recorded by the technicals tool (the previous close if that tool saw
+a live intraday price). Runs without it fall back to the run time: the previous
+session's close, or the same day's if it ran after 17:00 ET. The forward return
+is measured N trading days after that.
 Returns are also taken relative to a benchmark (SPY), since a rising market
 makes "Bullish" look right by default. A directional call counts as a hit when
 Bullish beat the benchmark or Bearish trailed it; Neutral/Unavailable calls are
@@ -15,6 +17,7 @@ Only runs old enough to have N trading days of history are scored, so this
 needs runs collected over time (e.g. a daily watchlist run).
 """
 import argparse
+import json
 from datetime import date, datetime, timedelta
 from pathlib import Path
 from zoneinfo import ZoneInfo
@@ -38,6 +41,21 @@ def price_cutoff(timestamp: str) -> date:
     return ny.date() if ny.hour >= MARKET_CLOSE_HOUR else ny.date() - timedelta(days=1)
 
 
+def entry_cutoff(run: dict) -> date:
+    """Latest date whose close counts as the entry price for this run.
+
+    Prefers the `as_of` the technicals tool recorded: that date's final close, or,
+    if the tool saw a live intraday price, the close before it. Runs without it
+    fall back to the run-time rule in price_cutoff.
+    """
+    try:
+        tech = json.loads(run["tool_outputs"]["get_technical_indicators"])
+        as_of = date.fromisoformat(tech["as_of"])
+    except (KeyError, TypeError, ValueError):  # no tool output, an error string, or an old run
+        return price_cutoff(run["timestamp"])
+    return as_of - timedelta(days=1) if tech.get("intraday") else as_of
+
+
 def fetch_closes(ticker: str, start: date) -> pd.Series:
     close = yf.Ticker(ticker).history(start=start.isoformat())["Close"].dropna()
     close.index = close.index.tz_localize(None).normalize()
@@ -54,7 +72,7 @@ def forward_return(close: pd.Series, cutoff: date, horizon: int) -> float | None
 
 def build_table(runs: list[dict], horizons: list[int]) -> pd.DataFrame:
     """One row per (run, horizon) that has matured."""
-    cutoffs = {id(r): price_cutoff(r["timestamp"]) for r in runs}
+    cutoffs = {id(r): entry_cutoff(r) for r in runs}
     start = min(cutoffs.values()) - timedelta(days=10)
     closes = {t: fetch_closes(t, start) for t in {r["ticker"] for r in runs} | {BENCHMARK}}
 
