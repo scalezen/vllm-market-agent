@@ -45,6 +45,11 @@ SYSTEM_PROMPT = (
     "get_stock_news, get_technical_indicators and get_analyst_recommendations, then "
     "assess overall sentiment (Bullish, Bearish, or Neutral) from the results."
 )
+# Appended to SYSTEM_PROMPT per run; tool results carry their own dates.
+DATE_NOTE = (
+    " Today is {today} (UTC). Tool results are dated: weight recent news and analyst "
+    "actions more heavily, and treat anything more than a few days old as background."
+)
 REPORT_PROMPT = (
     "Using only the tool results above, output the sentiment report as JSON. "
     "Give each of news_signal, technical_signal and analyst_signal (use 'Unavailable' if that "
@@ -96,7 +101,7 @@ async def run_agent(ticker: str) -> dict:
     current_usage.set(usage)
     started = time.perf_counter()
     messages = [
-        {"role": "system", "content": SYSTEM_PROMPT},
+        {"role": "system", "content": SYSTEM_PROMPT + DATE_NOTE.format(today=datetime.now(timezone.utc).date())},
         {"role": "user", "content": f"Can you check the current sentiment for {ticker}?"},
     ]
     tool_outputs: dict[str, str] = {}

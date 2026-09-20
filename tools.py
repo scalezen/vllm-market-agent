@@ -1,13 +1,23 @@
 """Tools the model can call: news (with embedding dedup), technicals, analyst ratings."""
 import json
+from datetime import datetime, time, timedelta, timezone
+from zoneinfo import ZoneInfo
 
 import numpy as np
 import pandas as pd
 import yfinance as yf
 from loguru import logger
 
-from config import DEDUP_THRESHOLD, EMBED_MODEL, client
+from config import (
+    ANALYST_CHANGES_MAX_AGE_DAYS,
+    DEDUP_THRESHOLD,
+    EMBED_MODEL,
+    NEWS_MAX_AGE_DAYS,
+    client,
+)
 from usage import current_usage
+
+NY = ZoneInfo("America/New_York")  # US market hours assumed for the intraday check
 
 
 # --------------------------------------------------------------------------
@@ -46,22 +56,40 @@ def dedup_headlines(headlines: list[str], threshold: float = DEDUP_THRESHOLD) ->
 # --------------------------------------------------------------------------
 # Tools
 # --------------------------------------------------------------------------
+def _published(content: dict) -> datetime | None:
+    """Publish time of a yfinance news item (new `pubDate` or older `providerPublishTime`)."""
+    try:
+        if raw := content.get("pubDate"):
+            return datetime.fromisoformat(raw.replace("Z", "+00:00"))
+        if ts := content.get("providerPublishTime"):
+            return datetime.fromtimestamp(ts, timezone.utc)
+    except (ValueError, TypeError, OSError):
+        pass
+    return None
+
+
 def get_stock_news(ticker: str, n: int = 10) -> str:
-    """Fetch the latest news headlines for a ticker, with near-duplicates removed."""
+    """Newest headlines from the last NEWS_MAX_AGE_DAYS days, dated, near-duplicates removed."""
     logger.info("[tool] get_stock_news({})", ticker)
     try:
         news = yf.Ticker(ticker).news or []
     except Exception as exc:  # network errors, Yahoo rate limits, etc.
         return f"Error fetching news for {ticker}: {exc}"
 
-    headlines = []
-    for item in news[:n]:
+    cutoff = datetime.now(timezone.utc) - timedelta(days=NEWS_MAX_AGE_DAYS)
+    dated = []
+    for item in news:
         # yfinance >= 0.2.50 nests fields under "content"; older versions are flat.
-        title = item.get("content", item).get("title")
-        if title:
-            headlines.append(title)
-    headlines = dedup_headlines(headlines)
-    return json.dumps(headlines) if headlines else "No news found."
+        content = item.get("content", item)
+        title, published = content.get("title"), _published(content)
+        if title and published and published >= cutoff:  # undated items cannot be aged, so skip them
+            dated.append((published, title))
+    dated = sorted(dated, reverse=True)[:n]  # the feed is not strictly newest-first
+
+    unique = dedup_headlines([title for _, title in dated])  # keeps the newest of each cluster
+    published_by_title = {title: published for published, title in reversed(dated)}
+    items = [{"published": published_by_title[t].strftime("%Y-%m-%dT%H:%MZ"), "title": t} for t in unique]
+    return json.dumps(items) if items else f"No news found in the last {NEWS_MAX_AGE_DAYS} days."
 
 
 def _rsi(close: pd.Series, period: int = 14) -> float:
@@ -87,12 +115,19 @@ def get_technical_indicators(ticker: str) -> str:
 
     macd = close.ewm(span=12, adjust=False).mean() - close.ewm(span=26, adjust=False).mean()
     macd_signal = macd.ewm(span=9, adjust=False).mean()
+    # While the market is open yfinance appends a live partial bar, so the last "close" is a
+    # live price; otherwise it is the final close of `as_of`.
+    now_ny = datetime.now(NY)
+    as_of = close.index[-1].date()
+    intraday = as_of == now_ny.date() and now_ny.time() < time(16, 0)
     price = float(close.iloc[-1])
     rsi = _rsi(close)
     sma50 = float(close.tail(50).mean())
     sma200 = float(close.tail(200).mean()) if len(close) >= 200 else None
 
     result = {
+        "as_of": str(as_of),
+        "intraday": intraday,  # True: price/indicators use a live intraday price, not a final close
         "price": round(price, 2),
         "rsi_14": round(rsi, 1),
         "rsi_reading": "overbought" if rsi >= 70 else "oversold" if rsi <= 30 else "neutral",
@@ -111,6 +146,12 @@ def get_technical_indicators(ticker: str) -> str:
 def get_analyst_recommendations(ticker: str) -> str:
     """Analyst rating breakdown, price targets and the most recent upgrades/downgrades."""
     logger.info("[tool] get_analyst_recommendations({})", ticker)
+    # Snapshot semantics, so the sections line up:
+    #   ratings_current_month: the "0m" row of yfinance's monthly recommendation summary
+    #   price_targets:         the current consensus at fetch time (yfinance gives no date)
+    #   recent_changes:        individual rating actions, each with its own date, limited to
+    #                          the last ANALYST_CHANGES_MAX_AGE_DAYS days (about 1 month)
+    #                          to match the 0m snapshot; older ones are dropped
     t = yf.Ticker(ticker)
     result: dict = {}
     try:
@@ -131,7 +172,11 @@ def get_analyst_recommendations(ticker: str) -> str:
     try:
         changes = t.upgrades_downgrades
         if changes is not None and not changes.empty:
-            result["recent_changes"] = [
+            idx = pd.DatetimeIndex(changes.index)
+            changes.index = idx.tz_convert("UTC").tz_localize(None) if idx.tz else idx
+            cutoff = pd.Timestamp.now(tz="UTC").tz_localize(None) - pd.Timedelta(days=ANALYST_CHANGES_MAX_AGE_DAYS)
+            changes = changes[changes.index >= cutoff]
+            result["recent_changes"] = [  # [] when there were none this month
                 {
                     "date": str(idx.date()),
                     "firm": row.get("Firm"),
@@ -143,7 +188,10 @@ def get_analyst_recommendations(ticker: str) -> str:
             ]
     except Exception as exc:
         logger.warning("upgrades/downgrades failed for {}: {}", ticker, exc)
-    return json.dumps(result) if result else f"No analyst data found for {ticker}."
+    if not result:
+        return f"No analyst data found for {ticker}."
+    # `as_of` is when the snapshots were fetched (UTC date).
+    return json.dumps({"as_of": datetime.now(timezone.utc).date().isoformat(), **result})
 
 
 def _ticker_tool(name: str, description: str) -> dict:
@@ -164,14 +212,18 @@ def _ticker_tool(name: str, description: str) -> dict:
 
 
 TOOLS = [
-    _ticker_tool("get_stock_news", "Fetch the latest (de-duplicated) news headlines for a stock ticker."),
+    _ticker_tool(
+        "get_stock_news",
+        "Fetch the latest dated, de-duplicated news headlines (last week, newest first) for a stock ticker.",
+    ),
     _ticker_tool(
         "get_technical_indicators",
         "Get RSI, 50/200-day moving averages, MACD and 1-month price change for a stock ticker.",
     ),
     _ticker_tool(
         "get_analyst_recommendations",
-        "Get analyst buy/hold/sell counts, price targets and recent upgrades/downgrades for a stock ticker.",
+        "Get current-month analyst buy/hold/sell counts, current price targets and "
+        "upgrades/downgrades from the last month for a stock ticker.",
     ),
 ]
 TOOL_REGISTRY = {
