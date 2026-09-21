@@ -6,9 +6,11 @@ model produced text, a tool call, or nothing at all.
 """
 import json
 
-from agent import SYSTEM_PROMPT
 from config import MODEL_NAME, client
+from tasks import TASKS
 from tools import TOOLS
+
+SYSTEM_PROMPT = TASKS["sentiment"].system_prompt
 
 MESSAGES = [
     {"role": "system", "content": SYSTEM_PROMPT},

@@ -24,6 +24,7 @@ from loguru import logger
 
 from agent import check_server, run_watchlist
 from config import DEFAULT_CONCURRENCY
+from tasks import TASKS
 from store import RUNS_DIR, save_run
 
 
@@ -50,7 +51,7 @@ def main() -> None:
 
     tickers = load_tickers(args)
     check_server()
-    results = asyncio.run(run_watchlist(tickers, args.concurrency))
+    results = asyncio.run(run_watchlist(tickers, TASKS["sentiment"], args.concurrency))
 
     if not args.no_save:
         for r in results:
