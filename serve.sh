@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Start the local vLLM-MLX server with tool calling enabled.
-# Port 8010 matches the default VLLM_BASE_URL in sentiment_agent.py (vllm-mlx's own default is 8000).
+# Port 8010 matches the default VLLM_BASE_URL in config.py (vllm-mlx's own default is 8000).
 #
 # Default model: Qwen3-4B (4-bit, ~2.3 GB) - more reliable tool calling than Llama 3.2 3B.
 # --reasoning-parser qwen3 moves Qwen3's <think>...</think> text out of the
@@ -16,9 +16,23 @@ PORT="${PORT:-8010}"
 # (Set the same EMBED_MODEL when running the agent if you change it.)
 EMBED_MODEL="${EMBED_MODEL:-mlx-community/embeddinggemma-300m-6bit}"
 
-exec vllm-mlx serve "$MODEL" \
-  --port "$PORT" \
-  --enable-auto-tool-choice \
-  --tool-call-parser "$PARSER" \
-  --reasoning-parser qwen3 \
+# Off by default (config A / baseline): vllm-mlx then runs one generation at a
+# time (see LLM_CONCURRENCY in config.py, which serializes client-side to match).
+# Set to "true" for config B, and raise LLM_CONCURRENCY to match MAX_NUM_SEQS
+# when running the agent against it. See bench_serving.py for the A/B comparison.
+CONTINUOUS_BATCHING="${CONTINUOUS_BATCHING:-false}"
+# Cap on concurrent sequences the scheduler will admit into one batch; only
+# meaningful with CONTINUOUS_BATCHING=true. Unset uses vllm-mlx's own default.
+MAX_NUM_SEQS="${MAX_NUM_SEQS:-}"
+
+ARGS=(
+  --port "$PORT"
+  --enable-auto-tool-choice
+  --tool-call-parser "$PARSER"
+  --reasoning-parser qwen3
   --embedding-model "$EMBED_MODEL"
+)
+[[ "$CONTINUOUS_BATCHING" == "true" ]] && ARGS+=(--continuous-batching)
+[[ -n "$MAX_NUM_SEQS" ]] && ARGS+=(--max-num-seqs "$MAX_NUM_SEQS")
+
+exec vllm-mlx serve "$MODEL" "${ARGS[@]}"
