@@ -107,12 +107,14 @@ async def run_agent(ticker: str, task: Task) -> dict:
     )
     content = response.choices[0].message.content or ""
     report = task.report_model.model_validate_json(content)
+    # The report is nested (rather than splatted into the top level) so a run's shape
+    # does not depend on which task produced it; store.py/backtest.py key off "report".
     return {
         "ticker": ticker,
         "task": task.name,
         "user_prompt": user_prompt,
         "prompt_hash": task.prompt_hash,
-        **report.model_dump(),
+        "report": report.model_dump(),
         "model": MODEL_NAME,
         "tool_outputs": tool_outputs,
         "usage": usage.as_dict(time.perf_counter() - started),

@@ -8,13 +8,14 @@ import json
 
 from config import MODEL_NAME, client
 from tasks import TASKS
-from tools import TOOLS
+from tools import get_tools
 
-SYSTEM_PROMPT = TASKS["sentiment"].system_prompt
+TASK = TASKS["sentiment"]
+TOOLS = get_tools(TASK.tools)  # the task's own tool subset, not every registered tool
 
 MESSAGES = [
-    {"role": "system", "content": SYSTEM_PROMPT},
-    {"role": "user", "content": "Can you check the current sentiment for GOOGL?"},
+    {"role": "system", "content": TASK.system_prompt},
+    {"role": "user", "content": TASK.user_prompt.format(ticker="GOOGL")},
 ]
 
 CASES = {

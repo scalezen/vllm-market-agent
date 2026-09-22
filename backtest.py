@@ -1,7 +1,11 @@
-"""Score stored sentiment runs against what the stock did afterwards.
+"""Score stored runs of a directional task against what the stock did afterwards.
 
-    python backtest.py                         # 1, 5 and 20 trading-day horizons
-    python backtest.py --horizons 5 10 --csv scored.csv --runs-dir runs
+    python backtest.py                              # sentiment task, 1/5/20 trading-day horizons
+    python backtest.py --task sentiment --horizons 5 10 --csv scored.csv --runs-dir runs
+
+Only tasks whose report has Bullish/Bearish-style fields can be scored (see
+reports.signal_fields); a task with no such field exits with an explanation
+instead of a table.
 
 For each stored run the entry price is the last final close the agent saw: the
 `as_of` date recorded by the technicals tool (the previous close if that tool saw
@@ -27,9 +31,10 @@ import pandas as pd
 import yfinance as yf
 from loguru import logger
 
+from reports import signal_fields
 from store import RUNS_DIR, load_runs
+from tasks import TASKS
 
-SIGNALS = ["sentiment", "news_signal", "technical_signal", "analyst_signal"]
 BENCHMARK = "SPY"
 NY = ZoneInfo("America/New_York")
 MARKET_CLOSE_HOUR = 17  # runs at/after 17:00 ET can see that day's close
@@ -70,7 +75,7 @@ def forward_return(close: pd.Series, cutoff: date, horizon: int) -> float | None
     return float(close.iloc[pos + horizon] / close.iloc[pos] - 1)
 
 
-def build_table(runs: list[dict], horizons: list[int]) -> pd.DataFrame:
+def build_table(runs: list[dict], horizons: list[int], signals: list[str]) -> pd.DataFrame:
     """One row per (run, horizon) that has matured."""
     cutoffs = {id(r): entry_cutoff(r) for r in runs}
     start = min(cutoffs.values()) - timedelta(days=10)
@@ -91,17 +96,17 @@ def build_table(runs: list[dict], horizons: list[int]) -> pd.DataFrame:
                     "horizon": h,
                     "ret": ret,
                     "excess": ret - bench,
-                    **{s: run.get(s) for s in SIGNALS},
+                    **{s: run["report"].get(s) for s in signals},
                 }
             )
     return pd.DataFrame(rows)
 
 
-def score(table: pd.DataFrame) -> pd.DataFrame:
+def score(table: pd.DataFrame, signals: list[str]) -> pd.DataFrame:
     """Per signal, horizon and label: count, mean return, mean excess return, hit rate."""
     long = table.melt(
         id_vars=["ticker", "run_time", "horizon", "ret", "excess"],
-        value_vars=SIGNALS,
+        value_vars=signals,
         var_name="signal",
         value_name="label",
     )
@@ -117,21 +122,31 @@ def score(table: pd.DataFrame) -> pd.DataFrame:
         mean_excess_pct=("excess", lambda s: s.mean() * 100),
         hit_rate=("hit", "mean"),
     )
-    out["signal"] = pd.Categorical(out.index.get_level_values("signal"), SIGNALS)
+    out["signal"] = pd.Categorical(out.index.get_level_values("signal"), signals)
     return out.drop(columns="signal").round(2)
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("--task", default="sentiment", help="which task's stored runs to score")
     parser.add_argument("--runs-dir", type=Path, default=RUNS_DIR)
     parser.add_argument("--horizons", type=int, nargs="+", default=[1, 5, 20], help="trading days ahead")
     parser.add_argument("--csv", help="also write the per-run table to this CSV")
     args = parser.parse_args()
 
-    runs = load_runs(args.runs_dir)
+    task = TASKS.get(args.task)
+    if task is None:
+        raise SystemExit(f"Unknown task {args.task!r}. Available: {list(TASKS)}")
+    signals = signal_fields(task.report_model)
+    if not signals:
+        raise SystemExit(
+            f"Task {args.task!r} has no Bullish/Bearish-style field, so there is nothing to backtest."
+        )
+
+    runs = load_runs(args.runs_dir, task=args.task)
     if not runs:
-        raise SystemExit(f"No runs found in {args.runs_dir}/. Run sentiment_agent.py first.")
-    table = build_table(runs, args.horizons)
+        raise SystemExit(f"No stored runs for task {args.task!r} in {args.runs_dir}/. Run sentiment_agent.py first.")
+    table = build_table(runs, args.horizons, signals)
     if table.empty:
         raise SystemExit(
             f"{len(runs)} runs found, but none is old enough for horizons {args.horizons}. "
@@ -144,7 +159,7 @@ def main() -> None:
     logger.info("{} runs stored; scored observations per horizon: {}", len(runs), per_horizon)
     if min(per_horizon.values()) < 30:
         logger.warning("Fewer than 30 observations at some horizons; treat these numbers as anecdotes.")
-    print(score(table).to_string())
+    print(score(table, signals).to_string())
 
 
 if __name__ == "__main__":

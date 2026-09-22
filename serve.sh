@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Start the local vLLM-MLX server with tool calling enabled.
-# Port 8010 matches the default VLLM_BASE_URL in sentiment_agent.py (vllm-mlx's own default is 8000).
+# Port 8010 matches the default VLLM_BASE_URL in config.py (vllm-mlx's own default is 8000).
 #
 # Default model: Qwen3-4B (4-bit, ~2.3 GB) - more reliable tool calling than Llama 3.2 3B.
 # --reasoning-parser qwen3 moves Qwen3's <think>...</think> text out of the
