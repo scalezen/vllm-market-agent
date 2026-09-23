@@ -1,0 +1,5 @@
+label,rep,concurrency,n_ok,n_error,wall_seconds,total_completion_tokens,throughput_tok_s,latency_p50_s,latency_p90_s,latency_p99_s,sample_error
+A-baseline,0,1,1,0,12.61,40,3.2,12.61,12.61,12.61,
+A-baseline,0,2,2,0,20.5,89,4.3,20.49,20.5,20.5,
+A-baseline,0,4,4,0,40.59,169,4.2,40.58,40.58,40.58,
+A-baseline,0,8,8,0,81.01,342,4.2,80.96,81.01,81.01,

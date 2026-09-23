@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+.DS_Store
+*.swp
+runs/
+*.csv
+!bench_results.csv
