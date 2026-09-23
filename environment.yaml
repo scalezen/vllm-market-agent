@@ -19,3 +19,4 @@ dependencies:
       - vllm-mlx   # brings mlx, mlx-lm, transformers, torch, torchvision
       - openai
       - yfinance
+      - fastmcp    # mcp_server.py: exposes tools/ as an MCP server
