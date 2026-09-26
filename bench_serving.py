@@ -5,8 +5,7 @@ realistic prompt -- not the agent, and not live tool data -- so results are
 reproducible run to run and comparable across server configs. Deliberately
 independent of agent.py/tasks/reports so it keeps working across changes there.
 
-Compare two server configs by starting each with serve.sh, then running this
-against each with a --label naming the config, e.g.:
+Compare two server configs either by starting each yourself with serve.sh:
 
     ./serve.sh                                          # config A: baseline
     python bench_serving.py --label A-baseline --csv bench_results.csv
@@ -14,17 +13,33 @@ against each with a --label naming the config, e.g.:
     CONTINUOUS_BATCHING=true MAX_NUM_SEQS=8 ./serve.sh   # config B
     python bench_serving.py --label B-continuous-batching-8 --csv bench_results.csv
 
+...or, in one command per config, with --start-server managing serve.sh for you
+(starts it, waits for it to be ready, runs the sweep, stops it again):
+
+    python bench_serving.py --start-server --csv bench_results.csv
+    python bench_serving.py --start-server --continuous-batching --max-num-seqs 8 --csv bench_results.csv
+
+--start-server refuses to run if something is already serving on VLLM_BASE_URL,
+rather than reusing or killing a server it didn't start.
+
 Record hardware, model, quantisation and the exact server flags alongside
 whatever --csv this produces -- see docs/decisions.md.
 """
 import argparse
 import asyncio
 import csv
+import os
+import subprocess
+import sys
 import time
 from dataclasses import dataclass
 from pathlib import Path
 
-from config import MODEL_NAME, aclient
+from config import BASE_URL, MODEL_NAME, aclient, client
+
+REPO_ROOT = Path(__file__).resolve().parent
+SERVE_SCRIPT = REPO_ROOT / "serve.sh"
+SERVER_READY_TIMEOUT_S = 300
 
 # A frozen prompt shaped like the sentiment task's final call: system + user +
 # one real captured tool round-trip (AAPL, 2026-09-22, ~1250 prompt tokens),
@@ -161,6 +176,75 @@ async def run_at_concurrency(n: int) -> dict:
     }
 
 
+def _server_reachable() -> bool:
+    try:
+        client.models.list()
+        return True
+    except Exception:
+        return False
+
+
+class ManagedServer:
+    """Starts ./serve.sh as a subprocess with the given config and waits for it
+    to be ready; stops it again on exit. Lets one command own the whole run
+    (start config B, sweep, tear down) instead of "start serve.sh by hand,
+    then run this in a second terminal."
+    """
+
+    def __init__(self, continuous_batching: bool, max_num_seqs: int | None, log_path: Path):
+        # vllm-mlx lives next to whatever Python is running this script; put that
+        # directory first so serve.sh finds it even if the outer shell's own PATH
+        # doesn't have the environment activated (e.g. invoked via an absolute
+        # interpreter path rather than through `conda activate`).
+        env_bin = str(Path(sys.executable).parent)
+        self.env = {
+            **os.environ,
+            "PATH": f"{env_bin}:{os.environ.get('PATH', '')}",
+            "CONTINUOUS_BATCHING": "true" if continuous_batching else "false",
+            "MAX_NUM_SEQS": str(max_num_seqs) if max_num_seqs else "",
+        }
+        self.log_path = log_path
+        self.proc: subprocess.Popen | None = None
+
+    def __enter__(self) -> "ManagedServer":
+        if _server_reachable():
+            raise RuntimeError(
+                f"Something is already serving on {BASE_URL}. Stop it first -- "
+                "--start-server won't reuse or kill a server it didn't start."
+            )
+        log = self.log_path.open("w")
+        self.proc = subprocess.Popen(
+            [str(SERVE_SCRIPT)], cwd=REPO_ROOT, env=self.env, stdout=log, stderr=subprocess.STDOUT
+        )
+        deadline = time.monotonic() + SERVER_READY_TIMEOUT_S
+        while time.monotonic() < deadline:
+            if self.proc.poll() is not None:
+                raise RuntimeError(f"Server exited before it was ready; see {self.log_path}:\n{self._tail()}")
+            if _server_reachable():
+                return self
+            time.sleep(2)
+        self._stop()
+        raise TimeoutError(f"Server not ready within {SERVER_READY_TIMEOUT_S}s; see {self.log_path}:\n{self._tail()}")
+
+    def _tail(self, n: int = 20) -> str:
+        try:
+            return "\n".join(self.log_path.read_text().splitlines()[-n:])
+        except OSError:
+            return "(no log)"
+
+    def _stop(self) -> None:
+        if self.proc and self.proc.poll() is None:
+            self.proc.terminate()
+            try:
+                self.proc.wait(timeout=15)
+            except subprocess.TimeoutExpired:
+                self.proc.kill()
+                self.proc.wait(timeout=15)
+
+    def __exit__(self, *exc_info) -> None:
+        self._stop()
+
+
 async def run_all(concurrencies: list[int], reps: int, label: str) -> list[dict]:
     rows = []
     for n in concurrencies:
@@ -175,11 +259,28 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--concurrencies", type=int, nargs="+", default=[1, 2, 4, 8, 16])
     parser.add_argument("--reps", type=int, default=3, help="repeats per concurrency level, for stability")
-    parser.add_argument("--label", required=True, help="name for the server config under test, e.g. A-baseline")
+    parser.add_argument("--label", help="name for the server config under test (default: derived below)")
     parser.add_argument("--csv", help="append rows to this CSV (written even if it exists)")
+    parser.add_argument(
+        "--start-server", action="store_true", help="launch ./serve.sh with the config below instead of "
+        "assuming one is already running"
+    )
+    parser.add_argument("--continuous-batching", action="store_true", help="with --start-server: config B")
+    parser.add_argument("--max-num-seqs", type=int, help="with --start-server: passed through to serve.sh")
     args = parser.parse_args()
 
-    rows = asyncio.run(run_all(args.concurrencies, args.reps, args.label))
+    if (args.continuous_batching or args.max_num_seqs) and not args.start_server:
+        parser.error("--continuous-batching/--max-num-seqs only take effect together with --start-server")
+
+    if args.label is None:
+        args.label = f"continuous-batching-{args.max_num_seqs or 'default'}" if args.continuous_batching else "baseline"
+
+    if args.start_server:
+        log_path = Path(f"/tmp/bench_serve_{args.label}.log")
+        with ManagedServer(args.continuous_batching, args.max_num_seqs, log_path):
+            rows = asyncio.run(run_all(args.concurrencies, args.reps, args.label))
+    else:
+        rows = asyncio.run(run_all(args.concurrencies, args.reps, args.label))
 
     if args.csv:
         path = Path(args.csv)
