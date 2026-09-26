@@ -7,10 +7,10 @@ from .base import Task
 
 GENERIC = Task(
     name="generic",
-    description="Research a ticker with the usual tools and answer whatever was asked.",
+    description="Research a ticker with the specified tools and answer whatever was asked.",
     system_prompt=(
         "You are a quantitative financial assistant. "
-        #"For the requested ticker, call ALL of "
+        #"For the requested ticker, call ALL of the given tools,"
         #"get_stock_news, get_technical_indicators and get_analyst_recommendations,"
         "then answer the user's question using only what the tools returned."
     ),
