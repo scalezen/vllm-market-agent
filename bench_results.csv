@@ -3,3 +3,8 @@ A-baseline,0,1,1,0,12.61,40,3.2,12.61,12.61,12.61,
 A-baseline,0,2,2,0,20.5,89,4.3,20.49,20.5,20.5,
 A-baseline,0,4,4,0,40.59,169,4.2,40.58,40.58,40.58,
 A-baseline,0,8,8,0,81.01,342,4.2,80.96,81.01,81.01,
+continuous-batching-8,0,1,1,0,12.76,41,3.2,12.76,12.76,12.76,
+continuous-batching-8,0,2,2,0,320.65,81,0.3,320.55,320.63,320.65,
+continuous-batching-8,0,4,4,0,11.05,165,14.9,10.98,11.04,11.04,
+continuous-batching-8,0,8,1,7,16.24,33,2.0,16.24,16.24,16.24,"Error code: 422 - {'detail': {'error': 'invalid_response_format_output', 'message': 'Failed to extract valid JSON from output'}}"
+continuous-batching-8,0,16,8,8,35.18,310,8.8,19.98,34.82,35.11,"Error code: 422 - {'detail': {'error': 'invalid_response_format_output', 'message': 'Failed to extract valid JSON from output'}}"
