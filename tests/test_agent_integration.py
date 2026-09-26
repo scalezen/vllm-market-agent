@@ -27,7 +27,10 @@ def _server_up() -> bool:
         return False
 
 
-pytestmark = pytest.mark.skipif(not _server_up(), reason="vLLM server not reachable on VLLM_BASE_URL; run ./serve.sh")
+pytestmark = [
+    pytest.mark.slow,
+    pytest.mark.skipif(not _server_up(), reason="vLLM server not reachable on VLLM_BASE_URL; run ./serve.sh"),
+]
 
 
 @pytest.fixture(scope="module")
