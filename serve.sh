@@ -25,6 +25,12 @@ CONTINUOUS_BATCHING="${CONTINUOUS_BATCHING:-false}"
 # meaningful with CONTINUOUS_BATCHING=true. Unset uses vllm-mlx's own default.
 MAX_NUM_SEQS="${MAX_NUM_SEQS:-}"
 
+# Quantizes the KV cache at runtime -- unlike MODEL's own quantization (baked
+# into which weights file is downloaded), this needs no additional download.
+# Independent of CONTINUOUS_BATCHING; the two can be combined.
+KV_CACHE_QUANTIZATION="${KV_CACHE_QUANTIZATION:-false}"
+KV_CACHE_QUANTIZATION_BITS="${KV_CACHE_QUANTIZATION_BITS:-}"  # 4 or 8; unset uses vllm-mlx's own default
+
 ARGS=(
   --port "$PORT"
   --enable-auto-tool-choice
@@ -34,5 +40,7 @@ ARGS=(
 )
 [[ "$CONTINUOUS_BATCHING" == "true" ]] && ARGS+=(--continuous-batching)
 [[ -n "$MAX_NUM_SEQS" ]] && ARGS+=(--max-num-seqs "$MAX_NUM_SEQS")
+[[ "$KV_CACHE_QUANTIZATION" == "true" ]] && ARGS+=(--kv-cache-quantization)
+[[ -n "$KV_CACHE_QUANTIZATION_BITS" ]] && ARGS+=(--kv-cache-quantization-bits "$KV_CACHE_QUANTIZATION_BITS")
 
 exec vllm-mlx serve "$MODEL" "${ARGS[@]}"
