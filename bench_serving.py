@@ -18,6 +18,10 @@ Compare two server configs either by starting each yourself with serve.sh:
 
     python bench_serving.py --start-server --csv bench_results.csv
     python bench_serving.py --start-server --continuous-batching --max-num-seqs 8 --csv bench_results.csv
+    python bench_serving.py --start-server --kv-cache-quantization --kv-cache-quantization-bits 4 --csv bench_results.csv
+
+Axes compose (e.g. --continuous-batching together with --kv-cache-quantization);
+--label auto-derives from whichever are set if you don't pass one.
 
 --start-server refuses to run if something is already serving on VLLM_BASE_URL,
 rather than reusing or killing a server it didn't start.
@@ -191,7 +195,14 @@ class ManagedServer:
     then run this in a second terminal."
     """
 
-    def __init__(self, continuous_batching: bool, max_num_seqs: int | None, log_path: Path):
+    def __init__(
+        self,
+        continuous_batching: bool,
+        max_num_seqs: int | None,
+        log_path: Path,
+        kv_cache_quantization: bool = False,
+        kv_cache_quantization_bits: int | None = None,
+    ):
         # vllm-mlx lives next to whatever Python is running this script; put that
         # directory first so serve.sh finds it even if the outer shell's own PATH
         # doesn't have the environment activated (e.g. invoked via an absolute
@@ -202,6 +213,8 @@ class ManagedServer:
             "PATH": f"{env_bin}:{os.environ.get('PATH', '')}",
             "CONTINUOUS_BATCHING": "true" if continuous_batching else "false",
             "MAX_NUM_SEQS": str(max_num_seqs) if max_num_seqs else "",
+            "KV_CACHE_QUANTIZATION": "true" if kv_cache_quantization else "false",
+            "KV_CACHE_QUANTIZATION_BITS": str(kv_cache_quantization_bits) if kv_cache_quantization_bits else "",
         }
         self.log_path = log_path
         self.proc: subprocess.Popen | None = None
@@ -267,17 +280,39 @@ def main() -> None:
     )
     parser.add_argument("--continuous-batching", action="store_true", help="with --start-server: config B")
     parser.add_argument("--max-num-seqs", type=int, help="with --start-server: passed through to serve.sh")
+    parser.add_argument(
+        "--kv-cache-quantization", action="store_true", help="with --start-server: quantize the KV cache"
+    )
+    parser.add_argument(
+        "--kv-cache-quantization-bits", type=int, choices=(4, 8), help="with --start-server: passed to serve.sh"
+    )
     args = parser.parse_args()
 
-    if (args.continuous_batching or args.max_num_seqs) and not args.start_server:
-        parser.error("--continuous-batching/--max-num-seqs only take effect together with --start-server")
+    server_only_flags = args.continuous_batching or args.max_num_seqs or args.kv_cache_quantization
+    if server_only_flags and not args.start_server:
+        parser.error(
+            "--continuous-batching/--max-num-seqs/--kv-cache-quantization* only take effect with --start-server"
+        )
 
     if args.label is None:
-        args.label = f"continuous-batching-{args.max_num_seqs or 'default'}" if args.continuous_batching else "baseline"
+        # Compose whichever axes are on, e.g. "cb8-kvq4"; nothing set -> "baseline".
+        parts = []
+        if args.continuous_batching:
+            parts.append(f"cb{args.max_num_seqs or ''}")
+        if args.kv_cache_quantization:
+            parts.append(f"kvq{args.kv_cache_quantization_bits or ''}")
+        args.label = "-".join(parts) if parts else "baseline"
 
     if args.start_server:
         log_path = Path(f"/tmp/bench_serve_{args.label}.log")
-        with ManagedServer(args.continuous_batching, args.max_num_seqs, log_path):
+        server = ManagedServer(
+            args.continuous_batching,
+            args.max_num_seqs,
+            log_path,
+            args.kv_cache_quantization,
+            args.kv_cache_quantization_bits,
+        )
+        with server:
             rows = asyncio.run(run_all(args.concurrencies, args.reps, args.label))
     else:
         rows = asyncio.run(run_all(args.concurrencies, args.reps, args.label))
