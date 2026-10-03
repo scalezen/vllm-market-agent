@@ -15,6 +15,8 @@ dependencies:
   - black>=24.0
   - mypy>=1.10
   - loguru
+    #- datasets
+    #- duckdb
   - pip:
       - vllm-mlx   # brings mlx, mlx-lm, transformers, torch, torchvision
       - openai

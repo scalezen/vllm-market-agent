@@ -6,7 +6,7 @@ it below.
 from .registry import all_tool_names, get_tool_functions, get_tools
 
 # Registration order is the order the model sees the tools in; keep it deliberate, not alphabetical.
-from . import news, technicals, analysts  # isort: skip  # noqa: E402,F401
+from . import news, news_top_k, technicals, analysts  # isort: skip  # noqa: E402,F401
 
 # Every registered tool; agent.py uses these until tasks pick tools by name.
 TOOLS = get_tools()
