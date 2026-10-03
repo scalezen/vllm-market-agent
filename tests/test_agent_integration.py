@@ -123,6 +123,18 @@ def test_generic_agent_aapl(loop):
     _assert_min_tools_called(result, len(task.tools))
 
 
+def test_embeddings(loop):
+    task = replace(
+        _consumer_fan_task("AAPL"),
+        tools=("get_stock_news_top_k", "get_technical_indicators", "get_analyst_recommendations"),
+    )
+    result = _run(loop, "AAPL", task)
+    _assert_ran_successfully(result, GENERIC_FIELDS)
+    _assert_min_tools_called(result, len(task.tools))
+    assert "get_stock_news_top_k" in result["tool_outputs"]
+    assert "get_stock_news" not in result["tool_outputs"]
+
+
 def test_generic_agent_rsi_prompt(loop):
     # The narrower question from our earlier discussion: does a specific ask
     # still get a populated report, regardless of how many tools it calls --
