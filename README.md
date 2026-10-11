@@ -1,4 +1,6 @@
-# vllm-market-agent 
+# vllm-market-agent
+
+[![nightly](https://github.com/scalezen/vllm-market-agent/actions/workflows/nightly.yml/badge.svg)](https://github.com/scalezen/vllm-market-agent/actions/workflows/nightly.yml)
 
 * This repo measures how vLLM behaves under different configurations of the run 
 - continuous batching, KV-cache, quantization, and the tradeoffs between
