@@ -1,5 +1,6 @@
 # vllm-market-agent
 
+[![ci](https://github.com/scalezen/vllm-market-agent/actions/workflows/ci.yml/badge.svg)](https://github.com/scalezen/vllm-market-agent/actions/workflows/ci.yml)
 [![nightly](https://github.com/scalezen/vllm-market-agent/actions/workflows/nightly.yml/badge.svg)](https://github.com/scalezen/vllm-market-agent/actions/workflows/nightly.yml)
 
 * This repo measures how vLLM behaves under different configurations of the run 
