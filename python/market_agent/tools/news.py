@@ -6,8 +6,8 @@ import numpy as np
 import yfinance as yf
 from loguru import logger
 
-from config import DEDUP_THRESHOLD, EMBED_MODEL, NEWS_MAX_AGE_DAYS, client
-from usage import current_usage
+from ..config import DEDUP_THRESHOLD, EMBED_MODEL, NEWS_MAX_AGE_DAYS, client
+from ..usage import current_usage
 
 from .registry import TICKER_PARAM, register_tool
 

@@ -1,15 +1,10 @@
 """Top-k headlines by cosine similarity to a query, from the local per-ticker corpus."""
 import json
-import sys
-from pathlib import Path
 
 from loguru import logger
-
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "python"))
 from numprims import topk_cosine
 
-import corpus
-
+from .. import corpus
 from .news import dedup_headlines
 from .registry import TICKER_PARAM, register_tool
 

@@ -6,7 +6,7 @@ from functools import lru_cache
 
 from loguru import logger
 
-from config import MODEL_NAME
+from .config import MODEL_NAME
 
 
 @lru_cache(maxsize=1)

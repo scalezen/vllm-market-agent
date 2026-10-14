@@ -1,5 +1,5 @@
 """Stock sentiment from news, technicals and analyst ratings."""
-from reports import SentimentReport
+from ..reports import SentimentReport
 
 from .base import Task
 

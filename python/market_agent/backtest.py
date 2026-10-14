@@ -1,7 +1,7 @@
 """Score stored runs of a directional task against what the stock did afterwards.
 
-    python backtest.py                              # sentiment task, 1/5/20 trading-day horizons
-    python backtest.py --task sentiment --horizons 5 10 --csv scored.csv --runs-dir runs
+    python -m market_agent.backtest                              # sentiment task, 1/5/20 trading-day horizons
+    python -m market_agent.backtest --task sentiment --horizons 5 10 --csv scored.csv --runs-dir runs
 
 Only tasks whose report has Bullish/Bearish-style fields can be scored (see
 reports.signal_fields); a task with no such field exits with an explanation
@@ -31,9 +31,9 @@ import pandas as pd
 import yfinance as yf
 from loguru import logger
 
-from reports import signal_fields
-from store import RUNS_DIR, load_runs
-from tasks import TASKS
+from .reports import signal_fields
+from .store import RUNS_DIR, load_runs
+from .tasks import TASKS
 
 BENCHMARK = "SPY"
 NY = ZoneInfo("America/New_York")

@@ -6,8 +6,8 @@ import asyncio
 import pytest
 from fastmcp import Client
 
-from mcp_server import build_server
-from tools import all_tool_names, get_tools
+from market_agent.mcp_server import build_server
+from market_agent.tools import all_tool_names, get_tools
 
 
 def _run(coro):
