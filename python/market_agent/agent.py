@@ -9,10 +9,10 @@ from datetime import datetime, timezone
 from loguru import logger
 from openai import APIConnectionError
 
-from config import BASE_URL, DEFAULT_CONCURRENCY, MAX_STEPS, MODEL_NAME, aclient, client, llm_slots
-from tasks import Task
-from tools import get_tool_functions, get_tools
-from usage import Usage, current_usage
+from .config import BASE_URL, DEFAULT_CONCURRENCY, MAX_STEPS, MODEL_NAME, aclient, client, llm_slots
+from .tasks import Task
+from .tools import get_tool_functions, get_tools
+from .usage import Usage, current_usage
 
 # Appended to the task's system prompt per run; tool results carry their own dates.
 DATE_NOTE = (
@@ -28,7 +28,7 @@ def check_server() -> None:
     except APIConnectionError:
         sys.exit(
             f"Cannot reach the vLLM server at {BASE_URL}.\n"
-            "Start it first (./serve.sh) or set VLLM_BASE_URL to the right host/port."
+            "Start it first (bench/serve.sh) or set VLLM_BASE_URL to the right host/port."
         )
     if MODEL_NAME not in served:
         sys.exit(f"Model '{MODEL_NAME}' is not served. Server has: {served}")

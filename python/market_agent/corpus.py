@@ -5,7 +5,7 @@ from pathlib import Path
 import duckdb
 import numpy as np
 
-from config import EMBED_MODEL, client
+from .config import EMBED_MODEL, client
 
 CORPUS = Path("data/raw/news_all.parquet")
 EMBED_BATCH = 64

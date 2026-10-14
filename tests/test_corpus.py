@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-import corpus
+from market_agent import corpus
 
 
 @pytest.fixture

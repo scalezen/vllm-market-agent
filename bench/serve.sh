@@ -7,7 +7,7 @@
 # answer into a separate `reasoning` field, so the printed analysis stays clean.
 #
 # Override without editing, e.g. the smaller model:
-#   MODEL=mlx-community/Qwen3-1.7B-4bit ./serve.sh
+#   MODEL=mlx-community/Qwen3-1.7B-4bit bench/serve.sh
 # (then run the agent with VLLM_MODEL set to the same model name)
 MODEL="${MODEL:-mlx-community/Qwen3-4B-4bit}"
 PARSER="${PARSER:-qwen}"

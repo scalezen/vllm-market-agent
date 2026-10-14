@@ -7,18 +7,18 @@ independent of agent.py/tasks/reports so it keeps working across changes there.
 
 Compare two server configs either by starting each yourself with serve.sh:
 
-    ./serve.sh                                          # config A: baseline
-    python bench_serving.py --label A-baseline --csv bench_results.csv
+    bench/serve.sh                                          # config A: baseline
+    python bench/bench_serving.py --label A-baseline --csv bench/bench_results.csv
 
-    CONTINUOUS_BATCHING=true MAX_NUM_SEQS=8 ./serve.sh   # config B
-    python bench_serving.py --label B-continuous-batching-8 --csv bench_results.csv
+    CONTINUOUS_BATCHING=true MAX_NUM_SEQS=8 bench/serve.sh   # config B
+    python bench/bench_serving.py --label B-continuous-batching-8 --csv bench/bench_results.csv
 
 ...or, in one command per config, with --start-server managing serve.sh for you
 (starts it, waits for it to be ready, runs the sweep, stops it again):
 
-    python bench_serving.py --start-server --csv bench_results.csv
-    python bench_serving.py --start-server --continuous-batching --max-num-seqs 8 --csv bench_results.csv
-    python bench_serving.py --start-server --kv-cache-quantization --kv-cache-quantization-bits 4 --csv bench_results.csv
+    python bench/bench_serving.py --start-server --csv bench/bench_results.csv
+    python bench/bench_serving.py --start-server --continuous-batching --max-num-seqs 8 --csv bench/bench_results.csv
+    python bench/bench_serving.py --start-server --kv-cache-quantization --kv-cache-quantization-bits 4 --csv bench/bench_results.csv
 
 Axes compose (e.g. --continuous-batching together with --kv-cache-quantization);
 --label auto-derives from whichever are set if you don't pass one.
@@ -39,10 +39,10 @@ import time
 from dataclasses import dataclass
 from pathlib import Path
 
-from config import BASE_URL, MODEL_NAME, aclient, client
+from market_agent.config import BASE_URL, MODEL_NAME, aclient, client
 
-REPO_ROOT = Path(__file__).resolve().parent
-SERVE_SCRIPT = REPO_ROOT / "serve.sh"
+BENCH_DIR = Path(__file__).resolve().parent
+SERVE_SCRIPT = BENCH_DIR / "serve.sh"
 SERVER_READY_TIMEOUT_S = 300
 
 # A frozen prompt shaped like the sentiment task's final call: system + user +
@@ -189,7 +189,7 @@ def _server_reachable() -> bool:
 
 
 class ManagedServer:
-    """Starts ./serve.sh as a subprocess with the given config and waits for it
+    """Starts bench/serve.sh as a subprocess with the given config and waits for it
     to be ready; stops it again on exit. Lets one command own the whole run
     (start config B, sweep, tear down) instead of "start serve.sh by hand,
     then run this in a second terminal."
@@ -227,7 +227,7 @@ class ManagedServer:
             )
         log = self.log_path.open("w")
         self.proc = subprocess.Popen(
-            [str(SERVE_SCRIPT)], cwd=REPO_ROOT, env=self.env, stdout=log, stderr=subprocess.STDOUT
+            [str(SERVE_SCRIPT)], cwd=BENCH_DIR, env=self.env, stdout=log, stderr=subprocess.STDOUT
         )
         deadline = time.monotonic() + SERVER_READY_TIMEOUT_S
         while time.monotonic() < deadline:
@@ -275,7 +275,7 @@ def main() -> None:
     parser.add_argument("--label", help="name for the server config under test (default: derived below)")
     parser.add_argument("--csv", help="append rows to this CSV (written even if it exists)")
     parser.add_argument(
-        "--start-server", action="store_true", help="launch ./serve.sh with the config below instead of "
+        "--start-server", action="store_true", help="launch bench/serve.sh with the config below instead of "
         "assuming one is already running"
     )
     parser.add_argument("--continuous-batching", action="store_true", help="with --start-server: config B")

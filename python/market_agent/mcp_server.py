@@ -1,7 +1,7 @@
 """MCP server exposing the agent's tools (tools/) via FastMCP.
 
-    python mcp_server.py                 # stdio transport, for an MCP client (e.g. Claude Desktop) config
-    python mcp_server.py --http 8020     # HTTP transport, for a quick manual check with an MCP client
+    python -m market_agent.mcp_server                 # stdio transport, for an MCP client (e.g. Claude Desktop) config
+    python -m market_agent.mcp_server --http 8020     # HTTP transport, for a quick manual check with an MCP client
 
 Thin protocol adapter, nothing else: no new tool logic and no new data
 source, just the existing functions in tools/ registered as MCP tools under
@@ -14,7 +14,7 @@ from typing import Callable
 
 from fastmcp import FastMCP
 
-from tools import get_tool_functions, get_tools
+from .tools import get_tool_functions, get_tools
 
 
 def build_server(

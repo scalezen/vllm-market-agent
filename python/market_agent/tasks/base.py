@@ -2,7 +2,7 @@
 import hashlib
 from dataclasses import dataclass
 
-from reports import BaseReport
+from ..reports import BaseReport
 
 
 @dataclass(frozen=True)

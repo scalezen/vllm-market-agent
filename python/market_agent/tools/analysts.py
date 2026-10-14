@@ -6,7 +6,7 @@ import pandas as pd
 import yfinance as yf
 from loguru import logger
 
-from config import ANALYST_CHANGES_MAX_AGE_DAYS
+from ..config import ANALYST_CHANGES_MAX_AGE_DAYS
 
 from .registry import TICKER_PARAM, register_tool
 

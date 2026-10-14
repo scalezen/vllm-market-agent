@@ -1,7 +1,7 @@
 """Free-form task: same three tools as sentiment, but the system and user prompts
 are meant to be customised per run (see generic_agent.py) and the report is
 just a summary + confidence, not a Bullish/Bearish call."""
-from reports import GenericReport
+from ..reports import GenericReport
 
 from .base import Task
 
