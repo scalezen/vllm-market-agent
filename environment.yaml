@@ -15,8 +15,14 @@ dependencies:
   - black>=24.0
   - mypy>=1.10
   - loguru
-    #- datasets
-    #- duckdb
+  - datasets
+  - duckdb
+      #- pandas
+      #- pyarrow
+  # build deps for cpp/numprims and py binding
+  - cxx-compiler
+  - cmake>=3.20
+  - pybind11
   - pip:
       - vllm-mlx   # brings mlx, mlx-lm, transformers, torch, torchvision
       - openai

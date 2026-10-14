@@ -1,0 +1,18 @@
+{
+  "version": 2,
+  "cmakeMinimumRequired": { "major": 3, "minor": 20, "patch": 0 },
+  "configurePresets": [
+    {
+      "name": "default",
+      "displayName": "Release build of numprims._core",
+      "binaryDir": "${sourceDir}/../../build/numprims",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
+      }
+    }
+  ],
+  "buildPresets": [
+    { "name": "default", "configurePreset": "default" }
+  ]
+}
