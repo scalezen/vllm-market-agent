@@ -1,7 +1,5 @@
 #include "numprims/topk_cosine.hpp"
 
-
-#include <execution>
 #include <algorithm>
 #include <functional>
 #include <numeric>
