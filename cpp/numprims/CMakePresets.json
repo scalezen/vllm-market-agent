@@ -5,6 +5,7 @@
     {
       "name": "default",
       "displayName": "Release build of numprims._core",
+      "generator": "Unix Makefiles",
       "binaryDir": "${sourceDir}/../../build/numprims",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release",

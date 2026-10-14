@@ -24,8 +24,9 @@ py::array_t<int64_t> topk_cosine_py(py::array_t<float, py::array::c_style | py::
 
     std::vector<int64_t> result = numprims::topk_cosine(std::span<const float>(matrix.data(), matrix.size()), std::span<const float>(query.data(), query.size()), k);
 
-    // TODO - copy here is O(k) << O(n*d). If copy is to be avoided,return a view which would unfort
-    // be tied to underlying vector
+    // NOTE: copy here is O(k) much smaller than O(n*d). 
+    // If this copy is to be avoided, we can return a view
+    // but it will be tied to underlying vector
     py::array_t<int64_t> out(static_cast<py::ssize_t>(result.size()));
     std::copy(result.begin(), result.end(), out.mutable_data());
     return out;
