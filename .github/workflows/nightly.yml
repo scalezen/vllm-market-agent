@@ -15,3 +15,6 @@ jobs:
           python-version: '3.11'
       - run: pip install fastmcp openai yfinance pandas numpy loguru pytest duckdb
       - run: pytest tests/test_mcp_server.py -v
+
+  numprims:
+    uses: ./.github/workflows/ci.yml
