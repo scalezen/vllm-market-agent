@@ -1,7 +1,10 @@
 # Environment for vllm-market-agent (Apple Silicon / arm64 only).
+# pyproject.toml is the full dependency list. This file adds what pip can't
+# provide, and pre-installs the compiled packages from conda-forge so pip
+# finds them already satisfied and skips them.
 #
-# Create:  conda env create -f environment.yaml
-# Update:  conda env update -f environment.yaml --prune
+# Create (from the repo root):  conda env create -f environment.yaml
+# Update:                       conda env update -f environment.yaml --prune
 name: vllm-market-agent
 channels:
   - conda-forge
@@ -9,22 +12,12 @@ channels:
 dependencies:
   - python=3.11
   - pip
-  # dev tooling (no compiled numeric dependencies)
-  - pytest
-  - ruff>=0.6
-  - black>=24.0
-  - mypy>=1.10
-  - loguru
-  - datasets
-  - duckdb
-      #- pandas
-      #- pyarrow
-  # build deps for cpp/numprims and py binding
   - cxx-compiler
   - cmake>=3.20
-  - pybind11
+  - numpy
+  - pandas
+  - pyarrow
+  - duckdb
+  - pydantic
   - pip:
-      - vllm-mlx   # brings mlx, mlx-lm, transformers, torch, torchvision
-      - openai
-      - yfinance
-      - fastmcp    # mcp_server.py: exposes tools/ as an MCP server
+      - -e .[serve,data,dev]
