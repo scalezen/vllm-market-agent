@@ -17,4 +17,14 @@ jobs:
       - run: pytest tests/test_mcp_server.py -v
 
   numprims:
-    uses: ./.github/workflows/ci.yml
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pybind11 numpy pytest
+      - run: cmake --preset default && cmake --build --preset default
+        working-directory: cpp/numprims
+      - run: python -c "import sys; sys.path.insert(0, 'python'); import numprims; assert 'native' in numprims.available_backends()"
+      - run: pytest tests/test_numprims_similarity.py -v
