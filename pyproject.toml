@@ -6,6 +6,27 @@ build-backend = "setuptools.build_meta"
 name = "vllm-market-agent"
 version = "0.1.0"
 requires-python = ">=3.11"
+dependencies = [
+    "openai",
+    "pydantic",
+    "yfinance",
+    "pandas",
+    "numpy",
+    "loguru",
+    "duckdb",
+    "fastmcp",
+]
+
+[project.optional-dependencies]
+serve = ["vllm-mlx"]  # Apple Silicon only; the server bench/serve.sh launches
+data = ["huggingface_hub", "pyarrow"]
+dev = ["pytest", "ruff>=0.6", "black>=24.0", "mypy>=1.10", "pybind11", "pyarrow"]
 
 [tool.setuptools.packages.find]
 where = ["python"]
+
+[tool.pytest.ini_options]
+pythonpath = ["python"]
+markers = [
+    "slow: hits a live server + real model calls (see tests/test_agent_integration.py); skip with -m \"not slow\"",
+]
