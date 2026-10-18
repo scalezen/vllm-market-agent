@@ -27,4 +27,4 @@ jobs:
       - run: cmake --preset default && cmake --build --preset default
         working-directory: cpp/numerical_primitives
       - run: python -c "import sys; sys.path.insert(0, 'python'); import numerical_primitives; assert 'native' in numerical_primitives.available_backends()"
-      - run: pytest tests/test_numprims_similarity.py -v
+      - run: pytest tests/test_numerical_primitives_similarity.py -v
