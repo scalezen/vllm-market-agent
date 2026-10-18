@@ -2,7 +2,7 @@
 import json
 
 from loguru import logger
-from numprims import topk_cosine
+from numerical_primitives import topk_cosine
 
 from .. import corpus
 from .news import dedup_headlines

@@ -31,8 +31,8 @@ pybind11_add_module(_core
 
 target_include_directories(_core PRIVATE include)
 
-# Drop the built extension next to python/numprims/__init__.py so
+# Drop the built extension next to python/numerical_primitives/__init__.py so
 # `from . import _core` in _backend.py finds it with no install step.
 set_target_properties(_core PROPERTIES
-    LIBRARY_OUTPUT_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/../../python/numprims"
+    LIBRARY_OUTPUT_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/../../python/numerical_primitives"
 )

@@ -3,7 +3,7 @@ from pathlib import Path
 
 import numpy as np
 import pytest
-from numprims import available_backends, topk_cosine
+from numerical_primitives import available_backends, topk_cosine
 
 
 def _unit_rows(n: int, d: int, seed: int) -> np.ndarray:
@@ -84,8 +84,8 @@ def test_auto_backend_matches_numpy():
 # --- extraction invariant: numprims must not know this is a stock-news app ------
 
 FORBIDDEN = ("headline", "ticker", "news", "stock", "corpus")
-SOURCE_DIRS = (Path(__file__).resolve().parent.parent / "python" / "numprims",
-               Path(__file__).resolve().parent.parent / "cpp" / "numprims")
+SOURCE_DIRS = (Path(__file__).resolve().parent.parent / "python" / "numerical_primitives",
+               Path(__file__).resolve().parent.parent / "cpp" / "numerical_primitives")
 
 
 def test_numprims_source_has_no_application_words():

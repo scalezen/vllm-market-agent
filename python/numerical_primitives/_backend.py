@@ -1,4 +1,4 @@
-"""Discovers the optional native backend (see ../../cpp/numprims/README.md).
+"""Discovers the optional native backend (see ../../cpp/numerical_primitives/README.md).
 
 Import failure here means the native extension hasn't been built yet, not an
 error; `available_backends` and `native_topk_cosine` are how callers find out
@@ -26,5 +26,5 @@ def available_backends() -> list[str]:
 
 def native_topk_cosine(matrix: np.ndarray, query: np.ndarray, k: int) -> np.ndarray:
     if _native is None:
-        raise RuntimeError("native backend is not built; see cpp/numprims/README.md")
+        raise RuntimeError("native backend is not built; see cpp/numerical_primitives/README.md")
     return _native.topk_cosine(matrix, query, k)

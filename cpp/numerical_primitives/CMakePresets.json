@@ -4,9 +4,9 @@
   "configurePresets": [
     {
       "name": "default",
-      "displayName": "Release build of numprims._core",
+      "displayName": "Release build of numerical_primitives._core",
       "generator": "Unix Makefiles",
-      "binaryDir": "${sourceDir}/../../build/numprims",
+      "binaryDir": "${sourceDir}/../../build/numerical_primitives",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release",
         "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"

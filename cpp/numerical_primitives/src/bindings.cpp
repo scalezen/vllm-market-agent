@@ -35,6 +35,6 @@ py::array_t<int64_t> topk_cosine_py(py::array_t<float, py::array::c_style | py::
 }  // namespace
 
 PYBIND11_MODULE(_core, m) {
-    m.doc() = "Native top-k cosine similarity kernel (see cpp/numprims/README.md)";
+    m.doc() = "Native top-k cosine similarity kernel (see cpp/numerical_primitives/README.md)";
     m.def("topk_cosine", &topk_cosine_py, py::arg("matrix"), py::arg("query"), py::arg("k"));
 }
