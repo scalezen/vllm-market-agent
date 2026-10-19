@@ -1,0 +1,36 @@
+# TTFT vs prompt length, prefill arm, default engine, Gemma 4 E2B (text-only, ~2.6 GB).
+# Quote strings: YAML reads unquoted ON/NO/YES/OFF as booleans.
+
+server:
+  model: "mlx-community/Gemma4-E2B-IT-Text-int4"
+  tool_call_parser: "gemma4"
+  reasoning_parser: "gemma4"
+  serve_script: "bench/serve.sh"
+  ready_timeout_s: 300
+  continuous_batching: false
+  max_num_seqs: null            # needs continuous_batching
+  prefix_cache: false           # true also drops the per-request cache-busting id
+  kv_cache_quantization: false  # only takes effect with continuous_batching + prefix_cache
+  kv_cache_quantization_bits: null
+
+prompt:
+  ticker: "WMT"
+  signal_file: "data/raw/WMT_news.parquet"
+  noise_file: "data/raw/no_WMT_news.parquet"
+  # Titles are ~20 tokens each; 1500 is the most that fits Qwen3-4B's 40,960 positions.
+  noise_levels: [50, 100, 200, 300, 500, 1000]
+  system: "You are a quantitative financial assistant. For the requested ticker, call get_stock_news then your response."
+  user: "Based only on the headlines above, will the price target for {ticker} go up?"
+  report: "Using only the tool results above, answer as JSON: a confidence between 0 and 1, and a summary that directly answers what was asked."
+
+request:
+  prefill_only: true  # false = full generation, with max_tokens: null
+  # Gemma 4 opens its thinking with <|channel>thought, which the parser strips, so
+  # the first visible token comes later than Qwen3's. Check chunks > 0 on a first run.
+  max_tokens: 4
+  enable_thinking: true
+
+run:
+  concurrencies: [1]
+  reps: 3
+  results_dir: "bench/results"

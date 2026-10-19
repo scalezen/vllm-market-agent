@@ -1,0 +1,33 @@
+# TTFT vs prompt length, prefill arm, 8-bit KV-cache quantization.
+# Quantization only applies with continuous batching and the prefix cache on.
+
+server:
+  model: "mlx-community/Qwen3-4B-4bit"
+  tool_call_parser: "qwen"
+  reasoning_parser: "qwen3"
+  serve_script: "bench/serve.sh"
+  ready_timeout_s: 300
+  continuous_batching: true
+  max_num_seqs: 8
+  prefix_cache: true
+  kv_cache_quantization: true
+  kv_cache_quantization_bits: 8
+
+prompt:
+  ticker: "WMT"
+  signal_file: "data/raw/WMT_news.parquet"
+  noise_file: "data/raw/no_WMT_news.parquet"
+  noise_levels: [50, 100, 200, 300, 500, 1000]
+  system: "You are a quantitative financial assistant. For the requested ticker, call get_stock_news then your response."
+  user: "Based only on the headlines above, will the price target for {ticker} go up?"
+  report: "Using only the tool results above, answer as JSON: a confidence between 0 and 1, and a summary that directly answers what was asked."
+
+request:
+  prefill_only: true
+  max_tokens: 2
+  enable_thinking: true
+
+run:
+  concurrencies: [1]
+  reps: 3
+  results_dir: "bench/results"
