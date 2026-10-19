@@ -5,7 +5,7 @@ server:
   model: "mlx-community/Gemma4-E2B-IT-Text-int4"
   tool_call_parser: "gemma4"
   reasoning_parser: "gemma4"
-  serve_script: "bench/serve.sh"
+  serve_script: "benchmarks/serve.sh"
   ready_timeout_s: 300
   continuous_batching: false
   max_num_seqs: null            # needs continuous_batching
@@ -33,4 +33,4 @@ request:
 run:
   concurrencies: [1]
   reps: 3
-  results_dir: "bench/results"
+  results_dir: "benchmarks/results"

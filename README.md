@@ -10,8 +10,8 @@ the workload.
 
 ## Quick start
 
-`bench/serve.sh` takes env-var overrides for the model
+`benchmarks/serve.sh` takes env-var overrides for the model
 
-See `bench/serve.sh` itself for every flag and environment variable.
+See `benchmarks/serve.sh` itself for every flag and environment variable.
 
 

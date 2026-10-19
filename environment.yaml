@@ -22,5 +22,7 @@ dependencies:
   - pyarrow
   - duckdb
   - pydantic
+  - matplotlib
+  - ipykernel   # the kernel VS Code's Jupyter extension runs notebooks in
   - pip:
-      - -e .[serve,data,dev]
+      - -e .[serve,data,dev,notebooks]

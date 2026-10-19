@@ -19,9 +19,10 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-serve = ["vllm-mlx"]  # Apple Silicon only; the server bench/serve.sh launches
+serve = ["vllm-mlx"]  # Apple Silicon only; the server benchmarks/serve.sh launches
 data = ["huggingface_hub", "pyarrow"]
 dev = ["pytest", "ruff>=0.6", "black>=24.0", "mypy>=1.10", "pybind11", "pyarrow"]
+notebooks = ["ipykernel", "matplotlib"]
 
 [tool.setuptools.packages.find]
 where = ["python"]

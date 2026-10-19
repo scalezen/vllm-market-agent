@@ -28,7 +28,7 @@ def check_server() -> None:
     except APIConnectionError:
         sys.exit(
             f"Cannot reach the vLLM server at {BASE_URL}.\n"
-            "Start it first (bench/serve.sh) or set VLLM_BASE_URL to the right host/port."
+            "Start it first (benchmarks/serve.sh) or set VLLM_BASE_URL to the right host/port."
         )
     if MODEL_NAME not in served:
         sys.exit(f"Model '{MODEL_NAME}' is not served. Server has: {served}")

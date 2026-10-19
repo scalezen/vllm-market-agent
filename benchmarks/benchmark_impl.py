@@ -1,9 +1,9 @@
 """TTFT and end-to-end latency vs. prompt length, one run per YAML config.
 
-    python bench/benchmark_impl.py bench/configs/ttft-prefill-baseline.yaml
+    python benchmarks/benchmark_impl.py benchmarks/configs/ttft-prefill-baseline.yaml
 
-Starts bench/serve.sh with the config's server settings, streams each request,
-and appends one row per request to bench/results/<config name>.csv. Each row
+Starts benchmarks/serve.sh with the config's server settings, streams each request,
+and appends one row per request to benchmarks/results/<config name>.csv. Each row
 records the config hash, git commit, model and hardware.
 """
 import argparse
@@ -258,7 +258,7 @@ def write_rows(path: Path, rows: list[dict]) -> Path:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("config", type=Path, help="run config, e.g. bench/configs/ttft-prefill-baseline.yaml")
+    parser.add_argument("config", type=Path, help="run config, e.g. benchmarks/configs/ttft-prefill-baseline.yaml")
     config_path = parser.parse_args().config.resolve()
     cfg = load_config(config_path)
     stamp = {**provenance(config_path), "model": cfg["server"]["model"]}
