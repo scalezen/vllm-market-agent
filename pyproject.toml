@@ -15,6 +15,7 @@ dependencies = [
     "loguru",
     "duckdb",
     "fastmcp",
+    "pyyaml",
 ]
 
 [project.optional-dependencies]
