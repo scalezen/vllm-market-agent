@@ -12,7 +12,7 @@ namespace numprims {
 namespace {
 
 // Cosine similarity, dot product of two length-d float vectors 
-float dot(std::span<const float> a,  std::span<const float>(b)) {
+float dot(std::span<const float> a,  std::span<const float> b) {
     
     auto t_lambda = [](auto a, auto b){ return a*b;};
     return std::transform_reduce(a.begin(), a.end(), b.begin(), 0.0f, std::plus<>(), std::multiplies<>());
