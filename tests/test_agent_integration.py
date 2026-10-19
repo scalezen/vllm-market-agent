@@ -5,7 +5,7 @@ model behaviour, unlike test_mcp_server.py's fast, mocked unit tests.
 Each test only confirms the run *succeeded* and its report is populated --
 not that the content is correct, since that's exactly what varies run to run.
 
-Requires the server (bench/serve.sh); skips cleanly if it's not reachable:
+Requires the server (benchmarks/serve.sh); skips cleanly if it's not reachable:
     python -m pytest tests/test_agent_integration.py -v
 """
 import asyncio
@@ -29,7 +29,7 @@ def _server_up() -> bool:
 
 pytestmark = [
     pytest.mark.slow,
-    pytest.mark.skipif(not _server_up(), reason="vLLM server not reachable on VLLM_BASE_URL; run bench/serve.sh"),
+    pytest.mark.skipif(not _server_up(), reason="vLLM server not reachable on VLLM_BASE_URL; run benchmarks/serve.sh"),
 ]
 
 

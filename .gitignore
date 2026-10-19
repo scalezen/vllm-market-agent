@@ -5,6 +5,6 @@ __pycache__/
 runs/
 *.csv
 !bench_results.csv
-!bench/results/*.csv
+!benchmarks/results/*.csv
 build/
 *.so

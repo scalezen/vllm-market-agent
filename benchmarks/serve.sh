@@ -7,7 +7,7 @@
 # the answer into a separate `reasoning` field. Both parsers are model-specific.
 #
 # Override without editing, e.g. the smaller model:
-#   MODEL=mlx-community/Qwen3-1.7B-4bit bench/serve.sh
+#   MODEL=mlx-community/Qwen3-1.7B-4bit benchmarks/serve.sh
 # (then run the agent with VLLM_MODEL set to the same model name)
 MODEL="${MODEL:-mlx-community/Qwen3-4B-4bit}"
 PARSER="${PARSER:-qwen}"
@@ -20,7 +20,7 @@ EMBED_MODEL="${EMBED_MODEL:-mlx-community/embeddinggemma-300m-6bit}"
 # Off by default (config A / baseline): vllm-mlx then runs one generation at a
 # time (see LLM_CONCURRENCY in config.py, which serializes client-side to match).
 # Set to "true" for config B, and raise LLM_CONCURRENCY to match MAX_NUM_SEQS
-# when running the agent against it. See bench/run_benchmarks.py for running configs.
+# when running the agent against it. See benchmarks/run_benchmarks.py for running configs.
 CONTINUOUS_BATCHING="${CONTINUOUS_BATCHING:-false}"
 # Cap on concurrent sequences the scheduler will admit into one batch; only
 # meaningful with CONTINUOUS_BATCHING=true. Unset uses vllm-mlx's own default.
