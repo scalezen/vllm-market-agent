@@ -3,14 +3,15 @@
 # Port 8010 matches the default VLLM_BASE_URL in config.py (vllm-mlx's own default is 8000).
 #
 # Default model: Qwen3-4B (4-bit, ~2.3 GB) - more reliable tool calling than Llama 3.2 3B.
-# --reasoning-parser qwen3 moves Qwen3's <think>...</think> text out of the
-# answer into a separate `reasoning` field, so the printed analysis stays clean.
+# The reasoning parser moves the model's thinking (Qwen3: <think>...</think>) out of
+# the answer into a separate `reasoning` field. Both parsers are model-specific.
 #
 # Override without editing, e.g. the smaller model:
 #   MODEL=mlx-community/Qwen3-1.7B-4bit bench/serve.sh
 # (then run the agent with VLLM_MODEL set to the same model name)
 MODEL="${MODEL:-mlx-community/Qwen3-4B-4bit}"
 PARSER="${PARSER:-qwen}"
+REASONING_PARSER="${REASONING_PARSER:-qwen3}"
 PORT="${PORT:-8010}"
 # Embedding model served on /v1/embeddings; the agent uses it to de-duplicate headlines.
 # (Set the same EMBED_MODEL when running the agent if you change it.)
@@ -19,7 +20,7 @@ EMBED_MODEL="${EMBED_MODEL:-mlx-community/embeddinggemma-300m-6bit}"
 # Off by default (config A / baseline): vllm-mlx then runs one generation at a
 # time (see LLM_CONCURRENCY in config.py, which serializes client-side to match).
 # Set to "true" for config B, and raise LLM_CONCURRENCY to match MAX_NUM_SEQS
-# when running the agent against it. See bench_serving.py for the A/B comparison.
+# when running the agent against it. See bench/run_benchmarks.py for running configs.
 CONTINUOUS_BATCHING="${CONTINUOUS_BATCHING:-false}"
 # Cap on concurrent sequences the scheduler will admit into one batch; only
 # meaningful with CONTINUOUS_BATCHING=true. Unset uses vllm-mlx's own default.
@@ -31,16 +32,21 @@ MAX_NUM_SEQS="${MAX_NUM_SEQS:-}"
 KV_CACHE_QUANTIZATION="${KV_CACHE_QUANTIZATION:-false}"
 KV_CACHE_QUANTIZATION_BITS="${KV_CACHE_QUANTIZATION_BITS:-}"  # 4 or 8; unset uses vllm-mlx's own default
 
+# vllm-mlx's prefix cache is on by default and only exists in continuous-batching
+# mode. The default engine instead keeps a system-prompt KV cache with no switch.
+PREFIX_CACHE="${PREFIX_CACHE:-true}"
+
 ARGS=(
   --port "$PORT"
   --enable-auto-tool-choice
   --tool-call-parser "$PARSER"
-  --reasoning-parser qwen3
+  --reasoning-parser "$REASONING_PARSER"
   --embedding-model "$EMBED_MODEL"
 )
 [[ "$CONTINUOUS_BATCHING" == "true" ]] && ARGS+=(--continuous-batching)
 [[ -n "$MAX_NUM_SEQS" ]] && ARGS+=(--max-num-seqs "$MAX_NUM_SEQS")
 [[ "$KV_CACHE_QUANTIZATION" == "true" ]] && ARGS+=(--kv-cache-quantization)
 [[ -n "$KV_CACHE_QUANTIZATION_BITS" ]] && ARGS+=(--kv-cache-quantization-bits "$KV_CACHE_QUANTIZATION_BITS")
+[[ "$PREFIX_CACHE" == "false" ]] && ARGS+=(--disable-prefix-cache)
 
 exec vllm-mlx serve "$MODEL" "${ARGS[@]}"
