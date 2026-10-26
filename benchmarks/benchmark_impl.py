@@ -205,7 +205,7 @@ async def run_point(cfg: dict, signal: list[str], noise: list[str], concurrency:
             "ok": r.ok,
             "prompt_tokens": r.prompt_tokens,
             "ttft_s": r.ttft_s,
-            "ttat_s": r.ttat_s,
+            #"ttat_s": r.ttat_s,
             "e2e_s": r.e2e_s,
             "completion_tokens": r.completion_tokens,
             "chunks": r.chunks,
