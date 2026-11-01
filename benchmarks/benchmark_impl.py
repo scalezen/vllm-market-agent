@@ -141,7 +141,7 @@ async def one_request(model: str, messages: list[dict], request: dict) -> Reques
     # generation, which would land in end-to-end latency.
     limits = {"max_tokens": request["max_tokens"]} if request["max_tokens"] else {}
     t0 = time.perf_counter()
-    ttft = ttat = usage = None
+    ttft = ttat = usage = finish = None
     chunks = reasoning_chars = 0
     try:
         stream = await aclient.chat.completions.create(
@@ -159,6 +159,7 @@ async def one_request(model: str, messages: list[dict], request: dict) -> Reques
                 usage = chunk.usage
             if not chunk.choices:
                 continue
+            finish = chunk.choices[0].finish_reason or finish
             delta = chunk.choices[0].delta
             # The qwen3 reasoning parser puts thinking in delta.reasoning(_content), not delta.content.
             think = getattr(delta, "reasoning", None) or getattr(delta, "reasoning_content", None) or ""
@@ -173,8 +174,9 @@ async def one_request(model: str, messages: list[dict], request: dict) -> Reques
                 ttat = time.perf_counter() - t0
     except Exception as exc:  # 503s under load, context overflow, timeouts are results too
         return RequestResult(False, time.perf_counter() - t0, error=str(exc)[:150])
+    # A stream can end cleanly with no tokens (seen at ~22k-token prompts); no TTFT means failure.
     return RequestResult(
-        True,
+        ttft is not None,
         time.perf_counter() - t0,
         ttft,
         ttat,
@@ -182,6 +184,7 @@ async def one_request(model: str, messages: list[dict], request: dict) -> Reques
         usage.completion_tokens if usage else None,
         reasoning_chars,
         chunks,
+        "" if ttft is not None else f"no tokens (finish_reason={finish})",
     )
 
 
