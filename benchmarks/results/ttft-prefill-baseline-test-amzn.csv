@@ -1,0 +1,7 @@
+config,config_sha,git_commit,hardware,run_at,model,rep,prefill_only,max_tokens,enable_thinking,noise_headlines,concurrency,request,ok,prompt_tokens,ttft_s,e2e_s,completion_tokens,chunks,reasoning_chars,error
+ttft-prefill-baseline-test-amzn,f8d52d6fc851,9ce01d3,"Apple M1, 8 GB",2026-11-01T20:58:14,mlx-community/Qwen3-4B-4bit,0,True,2,True,50,1,0,True,1472,9.783966750001127,9.785333333005838,2,1,1,
+ttft-prefill-baseline-test-amzn,f8d52d6fc851,9ce01d3,"Apple M1, 8 GB",2026-11-01T20:58:14,mlx-community/Qwen3-4B-4bit,1,True,2,True,50,1,0,True,1472,9.79047058300057,9.79181800000515,2,1,1,
+ttft-prefill-baseline-test-amzn,f8d52d6fc851,9ce01d3,"Apple M1, 8 GB",2026-11-01T20:58:14,mlx-community/Qwen3-4B-4bit,2,True,2,True,50,1,0,True,1471,9.744673834000423,9.74656370899902,2,1,1,
+ttft-prefill-baseline-test-amzn,f8d52d6fc851,9ce01d3,"Apple M1, 8 GB",2026-11-01T20:58:14,mlx-community/Qwen3-4B-4bit,0,True,2,True,100,1,0,True,2669,17.988461374996405,17.99014279199764,2,1,1,
+ttft-prefill-baseline-test-amzn,f8d52d6fc851,9ce01d3,"Apple M1, 8 GB",2026-11-01T20:58:14,mlx-community/Qwen3-4B-4bit,1,True,2,True,100,1,0,True,2670,17.976412040996365,17.977429999999003,2,1,1,
+ttft-prefill-baseline-test-amzn,f8d52d6fc851,9ce01d3,"Apple M1, 8 GB",2026-11-01T20:58:14,mlx-community/Qwen3-4B-4bit,2,True,2,True,100,1,0,True,2670,17.94681537499855,17.947713708002993,2,1,1,
