@@ -28,7 +28,7 @@ notebooks = ["ipykernel", "matplotlib"]
 where = ["python"]
 
 [tool.pytest.ini_options]
-pythonpath = ["python"]
+pythonpath = ["python", "benchmarks"]  # benchmarks/: ManagedServer for tests/test_agent_models.py
 markers = [
     "slow: hits a live server + real model calls (see tests/test_agent_integration.py); skip with -m \"not slow\"",
 ]
