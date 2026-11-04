@@ -136,12 +136,22 @@ def build_messages(prompt: dict, signal: list[str], noise: list[str], bust_prefi
 
 
 async def one_request(model: str, messages: list[dict], request: dict) -> RequestResult:
-    """Stream one completion to the end, timestamping the first token on the way."""
+    """Stream one completion to the end, timestamping the first token on the way.
+
+    TTFT rule:
+      full generation: first chunk with visible text (reasoning or answer).
+      prefill_only:    the chunk carrying finish_reason, i.e. when token max_tokens
+                       has been generated. Visible text can't be used: reasoning
+                       parsers hide the first tokens (Qwen3 <think>; Gemma 4
+                       <|channel>, thought, ...), and vllm-mlx sends no chunk for a
+                       fully hidden token but an empty one for a partly hidden one,
+                       so chunk counts differ by parser too.
+    """
     # No response_format: the server validates structured output after
     # generation, which would land in end-to-end latency.
     limits = {"max_tokens": request["max_tokens"]} if request["max_tokens"] else {}
     t0 = time.perf_counter()
-    ttft = ttat = usage = finish = None
+    ttft = ttat = usage = finish = finish_s = None
     chunks = reasoning_chars = 0
     try:
         stream = await aclient.chat.completions.create(
@@ -159,7 +169,8 @@ async def one_request(model: str, messages: list[dict], request: dict) -> Reques
                 usage = chunk.usage
             if not chunk.choices:
                 continue
-            finish = chunk.choices[0].finish_reason or finish
+            if chunk.choices[0].finish_reason and finish_s is None:
+                finish, finish_s = chunk.choices[0].finish_reason, time.perf_counter() - t0
             delta = chunk.choices[0].delta
             # The qwen3 reasoning parser puts thinking in delta.reasoning(_content), not delta.content.
             think = getattr(delta, "reasoning", None) or getattr(delta, "reasoning_content", None) or ""
@@ -174,17 +185,21 @@ async def one_request(model: str, messages: list[dict], request: dict) -> Reques
                 ttat = time.perf_counter() - t0
     except Exception as exc:  # 503s under load, context overflow, timeouts are results too
         return RequestResult(False, time.perf_counter() - t0, error=str(exc)[:150])
-    # A stream can end cleanly with no tokens (seen at ~22k-token prompts); no TTFT means failure.
+    completion = usage.completion_tokens if usage else None
+    if request["prefill_only"]:
+        # Stamp only if all max_tokens were generated: a stream can end cleanly
+        # with no tokens (seen at ~22k-token prompts).
+        ttft = finish_s if completion is not None and completion >= request["max_tokens"] else None
     return RequestResult(
         ttft is not None,
         time.perf_counter() - t0,
         ttft,
         ttat,
         usage.prompt_tokens if usage else None,
-        usage.completion_tokens if usage else None,
+        completion,
         reasoning_chars,
         chunks,
-        "" if ttft is not None else f"no tokens (finish_reason={finish})",
+        "" if ttft is not None else f"no TTFT (finish_reason={finish}, completion_tokens={completion})",
     )
 
 
