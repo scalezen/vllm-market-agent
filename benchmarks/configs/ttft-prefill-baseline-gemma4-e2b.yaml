@@ -28,7 +28,7 @@ prompt:
 
 request:
   prefill_only: true  # false = full generation, with max_tokens: null
-  # TTFT is stamped when token max_tokens arrives (benchmark_impl.one_request).
+  # TTFT is stamped when token max_tokens arrives (benchmark_impl.timed_stream_request).
   # Token 1: Qwen3 <think>, Gemma 4 <|channel>; both hidden by the reasoning parser.
   # Token 2: visible for Qwen3, still hidden for Gemma 4 (thought). It is a generated
   # token either way, so 2 gives prefill + 1 decode step for both models.

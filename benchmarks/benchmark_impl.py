@@ -135,7 +135,7 @@ def build_messages(prompt: dict, signal: list[str], noise: list[str], bust_prefi
     ]
 
 
-async def one_request(model: str, messages: list[dict], request: dict) -> RequestResult:
+async def timed_stream_request(model: str, messages: list[dict], request: dict) -> RequestResult:
     """Stream one completion to the end, timestamping the first token on the way.
 
     TTFT rule:
@@ -208,7 +208,7 @@ async def run_point(cfg: dict, signal: list[str], noise: list[str], concurrency:
     bust = not cfg["server"]["prefix_cache"]
     results = await asyncio.gather(
         *(
-            one_request(cfg["server"]["model"], build_messages(cfg["prompt"], signal, noise, bust), cfg["request"])
+            timed_stream_request(cfg["server"]["model"], build_messages(cfg["prompt"], signal, noise, bust), cfg["request"])
             for _ in range(concurrency)
         )
     )
@@ -239,7 +239,7 @@ async def run_all(cfg: dict, stamp: dict) -> list[dict]:
     signal = _titles(REPO_ROOT / prompt["signal_file"])
     pool = _titles(REPO_ROOT / prompt["noise_file"], max(prompt["noise_levels"]))
     # Discarded: first-request overheads (weights paged in, kernels compiled).
-    warmup = await one_request(
+    warmup = await timed_stream_request(
         cfg["server"]["model"],
         build_messages(prompt, signal, pool[: min(prompt["noise_levels"])], True),
         cfg["request"],
