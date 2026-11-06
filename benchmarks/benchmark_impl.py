@@ -50,7 +50,8 @@ SCHEMA = {
         "user": str,
         "report": str,
     },
-    "request": {"prefill_only": bool, "max_tokens": OPTIONAL_INT, "enable_thinking": bool},
+    # max_tokens: an int, a list of ints (swept, e.g. for TPOT), or null.
+    "request": {"prefill_only": bool, "max_tokens": (int, list, type(None)), "enable_thinking": bool},
     "run": {"concurrencies": list, "reps": int, "results_dir": str},
 }
 
@@ -76,10 +77,16 @@ def load_config(path: Path) -> dict:
         raise ValueError(f"{path}: run.concurrencies must be a non-empty list of positive ints")
     server = cfg["server"]
     request = cfg["request"]
-    if request["prefill_only"] and not (request["max_tokens"] or 0) >= 1:
-        raise ValueError(f"{path}: request.prefill_only needs max_tokens >= 1")
     if not request["prefill_only"] and request["max_tokens"] is not None:
         raise ValueError(f"{path}: request.max_tokens must be null unless prefill_only")
+    # Normalise to a list: the run loop sweeps it; null (full generation) becomes [None].
+    tokens = request["max_tokens"]
+    tokens = tokens if isinstance(tokens, list) else [tokens]
+    if request["prefill_only"] and not (
+        tokens and all(type(n) is int and n >= 1 for n in tokens) and len(set(tokens)) == len(tokens)
+    ):
+        raise ValueError(f"{path}: request.prefill_only needs max_tokens >= 1 (an int or a list of unique ints)")
+    request["max_tokens"] = tokens
     if server["ready_timeout_s"] < 1:
         raise ValueError(f"{path}: server.ready_timeout_s must be positive")
     if server["max_num_seqs"] is not None and not server["continuous_batching"]:
@@ -178,7 +185,7 @@ async def timed_stream_request(model: str, messages: list[dict], request: dict) 
             if think or answer:  # the first chunk is often role-only; don't timestamp it
                 chunks += 1
                 reasoning_chars += len(think)
-                print(f"chunk id: {chunks} arrived at time {time.perf_counter() - t0}")
+                # print(f"chunk id: {chunks} arrived at time {time.perf_counter() - t0}")
                 if ttft is None:
                     ttft = time.perf_counter() - t0
             if answer and ttat is None:
@@ -203,20 +210,23 @@ async def timed_stream_request(model: str, messages: list[dict], request: dict) 
     )
 
 
-async def run_point(cfg: dict, signal: list[str], noise: list[str], concurrency: int) -> list[dict]:
-    """Fire `concurrency` requests at once; one row per request."""
+async def run_point(cfg: dict, request: dict, signal: list[str], noise: list[str], concurrency: int) -> list[dict]:
+    """Fire `concurrency` requests at once; one row per request.
+
+    `request` is cfg["request"] with max_tokens set to this point's single value.
+    """
     bust = not cfg["server"]["prefix_cache"]
     results = await asyncio.gather(
         *(
-            timed_stream_request(cfg["server"]["model"], build_messages(cfg["prompt"], signal, noise, bust), cfg["request"])
+            timed_stream_request(cfg["server"]["model"], build_messages(cfg["prompt"], signal, noise, bust), request)
             for _ in range(concurrency)
         )
     )
     return [
         {
-            "prefill_only": cfg["request"]["prefill_only"],
-            "max_tokens": cfg["request"]["max_tokens"],
-            "enable_thinking": cfg["request"]["enable_thinking"],
+            "prefill_only": request["prefill_only"],
+            "max_tokens": request["max_tokens"],
+            "enable_thinking": request["enable_thinking"],
             "noise_headlines": len(noise),
             "concurrency": concurrency,
             "request": i,
@@ -242,17 +252,19 @@ async def run_all(cfg: dict, stamp: dict) -> list[dict]:
     warmup = await timed_stream_request(
         cfg["server"]["model"],
         build_messages(prompt, signal, pool[: min(prompt["noise_levels"])], True),
-        cfg["request"],
+        {**cfg["request"], "max_tokens": cfg["request"]["max_tokens"][0]},
     )
     print(f"warm-up: ok={warmup.ok} e2e={warmup.e2e_s:.2f}s {warmup.error}")
     rows = []
     for n_noise in prompt["noise_levels"]:
-        for concurrency in cfg["run"]["concurrencies"]:
-            for rep in range(cfg["run"]["reps"]):
-                for row in await run_point(cfg, signal, pool[:n_noise], concurrency):
-                    row = {**stamp, "rep": rep, **row}
-                    print(row)
-                    rows.append(row)
+        for max_tokens in cfg["request"]["max_tokens"]:
+            request = {**cfg["request"], "max_tokens": max_tokens}
+            for concurrency in cfg["run"]["concurrencies"]:
+                for rep in range(cfg["run"]["reps"]):
+                    for row in await run_point(cfg, request, signal, pool[:n_noise], concurrency):
+                        row = {**stamp, "rep": rep, **row}
+                        print(row)
+                        rows.append(row)
     return rows
 
 
