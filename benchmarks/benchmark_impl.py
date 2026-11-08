@@ -1,6 +1,6 @@
 """TTFT and end-to-end latency vs. prompt length, one run per YAML config.
 
-    python benchmarks/benchmark_impl.py benchmarks/configs/ttft-prefill-baseline.yaml
+    python benchmarks/benchmark_impl.py benchmarks/configs/vllm-mlx/ttft-prefill-baseline.yaml
 
 Starts benchmarks/serve.sh with the config's server settings, streams each request,
 and appends one row per request to benchmarks/results/<config name>.csv. Each row
@@ -26,6 +26,7 @@ from request_result import RequestResult
 
 # Config paths are relative to the repo root.
 REPO_ROOT = Path(__file__).resolve().parent.parent
+CONFIGS_DIR = REPO_ROOT / "benchmarks" / "configs"
 
 OPTIONAL_INT = (int, type(None))
 SCHEMA = {
@@ -292,6 +293,17 @@ async def run_all(cfg: dict, stamp: dict) -> list[dict]:
     return rows
 
 
+def results_path(cfg: dict, config_path: Path) -> Path:
+    """results_dir/<config's subfolder under benchmarks/configs>/<config stem>.csv.
+
+    Configs are grouped by serving stack (e.g. configs/vllm-mlx/); results mirror
+    that, so results_dir in the config stays "benchmarks/results" and moving a
+    config between folders doesn't change its bytes or its config_sha."""
+    parent = config_path.parent
+    sub = parent.relative_to(CONFIGS_DIR) if parent.is_relative_to(CONFIGS_DIR) else Path()
+    return REPO_ROOT / cfg["run"]["results_dir"] / sub / f"{config_path.stem}.csv"
+
+
 def write_rows(path: Path, rows: list[dict]) -> Path:
     """Append to `path`; if its header differs, write a timestamped sibling instead."""
     columns = list(rows[0].keys())
@@ -312,7 +324,7 @@ def write_rows(path: Path, rows: list[dict]) -> Path:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("config", type=Path, help="run config, e.g. benchmarks/configs/ttft-prefill-baseline.yaml")
+    parser.add_argument("config", type=Path, help="run config, e.g. benchmarks/configs/vllm-mlx/ttft-prefill-baseline.yaml")
     config_path = parser.parse_args().config.resolve()
     cfg = load_config(config_path)
     stamp = {**provenance(config_path), "model": cfg["server"]["model"]}
@@ -320,7 +332,7 @@ def main() -> None:
     script = REPO_ROOT / cfg["server"]["serve_script"]
     with ManagedServer(cfg["server"], script, Path(f"/tmp/bench_serve_{config_path.stem}.log")):
         rows = asyncio.run(run_all(cfg, stamp))
-    results = REPO_ROOT / cfg["run"]["results_dir"] / f"{config_path.stem}.csv"
+    results = results_path(cfg, config_path)
     print(f"wrote {write_rows(results, rows)}")
 
 

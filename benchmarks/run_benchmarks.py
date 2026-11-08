@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Run benchmark_impl.py once per config, in order.
 
-    python benchmarks/run_benchmarks.py benchmarks/configs/*.yaml
+    python benchmarks/run_benchmarks.py benchmarks/configs/vllm-mlx/*.yaml
 
 Each config runs in a fresh process, so nothing carries over between runs: no
 memory held by the last run, and no client tied to a closed event loop or a
