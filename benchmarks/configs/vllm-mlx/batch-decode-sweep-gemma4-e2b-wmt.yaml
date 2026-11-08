@@ -1,0 +1,43 @@
+# Fixed workload, Gemma 4 E2B: 32 requests per point, at most `concurrency` in flight (client
+# side); the next request is sent as soon as one finishes. Server cap max_num_seqs 32 equals
+# the largest concurrency, so it never holds a request back.
+# Per (max_tokens, concurrency, rep): workload time = max(start_s + e2e_s);
+# end-to-end throughput = 32 * 128 / workload time at max_tokens 128.
+# Decode step at batch size B = concurrency: (e2e at 128 - e2e at 2) / 126, per group.
+# Check "MLLM Scheduler started with max_num_seqs=32" in the server log. Swap is not
+# recorded by the harness: run `sysctl vm.swapusage` in a shell before and after.
+# Quote strings: YAML reads unquoted ON/NO/YES/OFF as booleans.
+
+server:
+  model: "mlx-community/Gemma4-E2B-IT-Text-int4"
+  tool_call_parser: "gemma4"
+  reasoning_parser: "gemma4"
+  serve_script: "benchmarks/serve.sh"
+  ready_timeout_s: 300
+  continuous_batching: true
+  max_num_seqs: 32
+  prefix_cache: false           # adds --disable-prefix-cache and the per-request cache-busting id
+  kv_cache_quantization: false
+  kv_cache_quantization_bits: null
+
+prompt:
+  ticker: "WMT"
+  signal_file: "data/raw/WMT_news.parquet"
+  noise_file: "data/raw/no_WMT_news.parquet"
+  noise_levels: [0]
+  system: "You are a quantitative financial assistant. For the requested ticker, call get_stock_news tool, then generate your response."
+  user: "Based only on the headlines above, will the price target for {ticker} go up?"
+  report: "Using only the tool results above, answer as JSON: a confidence between 0 and 1, and a summary that directly answers what was asked."
+
+request:
+  prefill_only: true  # stop at max_tokens and stamp there
+  # A row fails if the model stops before max_tokens (completion_tokens < max_tokens).
+  # Gemma reports completion_tokens = max_tokens + 2 on the default engine; the slope is unaffected.
+  max_tokens: [2, 128]
+  enable_thinking: true
+
+run:
+  concurrencies: [1, 2, 4, 8, 16, 32]
+  requests: 32                 # total per point; null = one batch of `concurrency`
+  reps: 2
+  results_dir: "benchmarks/results"
