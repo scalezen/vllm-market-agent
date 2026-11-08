@@ -37,6 +37,7 @@ class ManagedServer:
             "KV_CACHE_QUANTIZATION": "true" if server["kv_cache_quantization"] else "false",
             "KV_CACHE_QUANTIZATION_BITS": str(bits or ""),
             "PREFIX_CACHE": "true" if server["prefix_cache"] else "false",
+            "STREAM_INTERVAL": str(server["stream_interval"] or ""),
         }
         self.script = script
         self.timeout_s = server["ready_timeout_s"]

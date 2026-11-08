@@ -40,6 +40,7 @@ SCHEMA = {
         "prefix_cache": bool,
         "kv_cache_quantization": bool,
         "kv_cache_quantization_bits": OPTIONAL_INT,
+        "stream_interval": OPTIONAL_INT,
     },
     "prompt": {
         "ticker": str,
@@ -52,16 +53,26 @@ SCHEMA = {
     },
     # max_tokens: an int, a list of ints (swept, e.g. for TPOT), or null.
     "request": {"prefill_only": bool, "max_tokens": (int, list, type(None)), "enable_thinking": bool},
-    "run": {"concurrencies": list, "reps": int, "results_dir": str},
+    # requests: total requests per point, at most `concurrency` in flight; null = concurrency.
+    "run": {"concurrencies": list, "reps": int, "requests": OPTIONAL_INT, "results_dir": str},
 }
+# May be omitted (read as null), so configs written before the field existed keep
+# their config_sha and still match their committed results.
+OPTIONAL_FIELDS = {("server", "stream_interval"), ("run", "requests")}
 
 
 def load_config(path: Path) -> dict:
-    """Parse and validate a run config; every field is required, unknown fields are rejected."""
+    """Parse and validate a run config; every field except OPTIONAL_FIELDS is required,
+    unknown fields are rejected."""
     cfg = yaml.safe_load(path.read_text())
     if not isinstance(cfg, dict) or set(cfg) != set(SCHEMA):
         raise ValueError(f"{path}: needs exactly the sections {sorted(SCHEMA)}")
     for section, fields in SCHEMA.items():
+        if not isinstance(cfg[section], dict):
+            raise ValueError(f"{path}: [{section}] must be a mapping")
+        for sec, key in OPTIONAL_FIELDS:
+            if sec == section:
+                cfg[section].setdefault(key, None)
         if set(cfg[section]) != set(fields):
             raise ValueError(f"{path}: [{section}] needs exactly {sorted(fields)}")
         for key, kind in fields.items():
@@ -95,6 +106,11 @@ def load_config(path: Path) -> dict:
         raise ValueError(f"{path}: server.kv_cache_quantization_bits must be 4, 8 or null")
     if server["kv_cache_quantization_bits"] is not None and not server["kv_cache_quantization"]:
         raise ValueError(f"{path}: server.kv_cache_quantization_bits needs kv_cache_quantization")
+    if server["stream_interval"] is not None and server["stream_interval"] < 1:
+        raise ValueError(f"{path}: server.stream_interval must be >= 1 or null")
+    n_requests = cfg["run"]["requests"]
+    if n_requests is not None and n_requests < max(concurrencies):
+        raise ValueError(f"{path}: run.requests must be >= every concurrency, or null")
     return cfg
 
 
@@ -211,17 +227,24 @@ async def timed_stream_request(model: str, messages: list[dict], request: dict) 
 
 
 async def run_point(cfg: dict, request: dict, signal: list[str], noise: list[str], concurrency: int) -> list[dict]:
-    """Fire `concurrency` requests at once; one row per request.
+    """Send run.requests requests (default: `concurrency`), at most `concurrency` in
+    flight; the next starts as soon as one finishes. One row per request.
 
     `request` is cfg["request"] with max_tokens set to this point's single value.
+    start_s is when the request was sent, from the start of the point, so the point's
+    wall time is max(start_s + e2e_s). e2e_s and ttft_s run from start_s.
     """
     bust = not cfg["server"]["prefix_cache"]
-    results = await asyncio.gather(
-        *(
-            timed_stream_request(cfg["server"]["model"], build_messages(cfg["prompt"], signal, noise, bust), request)
-            for _ in range(concurrency)
-        )
-    )
+    in_flight = asyncio.Semaphore(concurrency)
+    t_point = time.perf_counter()
+
+    async def one() -> tuple[float, RequestResult]:
+        async with in_flight:
+            start = time.perf_counter() - t_point
+            messages = build_messages(cfg["prompt"], signal, noise, bust)
+            return start, await timed_stream_request(cfg["server"]["model"], messages, request)
+
+    results = await asyncio.gather(*(one() for _ in range(cfg["run"]["requests"] or concurrency)))
     return [
         {
             "prefill_only": request["prefill_only"],
@@ -230,6 +253,7 @@ async def run_point(cfg: dict, request: dict, signal: list[str], noise: list[str
             "noise_headlines": len(noise),
             "concurrency": concurrency,
             "request": i,
+            "start_s": start,
             "ok": r.ok,
             "prompt_tokens": r.prompt_tokens,
             "ttft_s": r.ttft_s,
@@ -240,7 +264,7 @@ async def run_point(cfg: dict, request: dict, signal: list[str], noise: list[str
             "reasoning_chars": r.reasoning_chars,
             "error": r.error,
         }
-        for i, r in enumerate(results)
+        for i, (start, r) in enumerate(results)
     ]
 
 

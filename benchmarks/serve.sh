@@ -36,6 +36,10 @@ KV_CACHE_QUANTIZATION_BITS="${KV_CACHE_QUANTIZATION_BITS:-}"  # 4 or 8; unset us
 # mode. The default engine instead keeps a system-prompt KV cache with no switch.
 PREFIX_CACHE="${PREFIX_CACHE:-true}"
 
+# Tokens generated per streamed chunk. Unset uses vllm-mlx's default of 1: every
+# token of every request is detokenised, parsed and sent on its own.
+STREAM_INTERVAL="${STREAM_INTERVAL:-}"
+
 ARGS=(
   --port "$PORT"
   --enable-auto-tool-choice
@@ -48,5 +52,6 @@ ARGS=(
 [[ "$KV_CACHE_QUANTIZATION" == "true" ]] && ARGS+=(--kv-cache-quantization)
 [[ -n "$KV_CACHE_QUANTIZATION_BITS" ]] && ARGS+=(--kv-cache-quantization-bits "$KV_CACHE_QUANTIZATION_BITS")
 [[ "$PREFIX_CACHE" == "false" ]] && ARGS+=(--disable-prefix-cache)
+[[ -n "$STREAM_INTERVAL" ]] && ARGS+=(--stream-interval "$STREAM_INTERVAL")
 
 exec vllm-mlx serve "$MODEL" "${ARGS[@]}"
