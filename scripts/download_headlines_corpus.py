@@ -1,10 +1,10 @@
-"""Build a per-ticker news corpus for the retrieval experiments.
+"""Build per-ticker headline files for the benchmarks.
 
-    python scripts/download_headlines_corpus.py          # AAPL
-    python scripts/download_headlines_corpus.py WMT
+    python scripts/download_headlines_corpus.py WMT AMZN
 
-Downloads the source once into data/raw/, converts it to parquet once, then
-writes data/raw/<TICKER>_news.parquet.
+Downloads the source and converts it to data/raw/news_all.parquet, replacing any existing
+copy. Then, for each ticker, writes data/raw/<TICKER>_news.parquet (signal
+headlines) and data/raw/no_<TICKER>_news.parquet (every other headline: the noise).
 """
 import argparse
 import re
@@ -16,41 +16,28 @@ from huggingface_hub import hf_hub_download
 REPO_ID = "khaihernlow/massive-stock-news-analysis-db-for-nlpbacktests"
 FILENAME = "data/raw_analyst_ratings.jsonl"
 RAW_DIR = Path("data/raw")
+ALL_PARQUET = RAW_DIR / "news_all.parquet"
 
 
-def ticker_parquet(ticker: str) -> Path:
-    return RAW_DIR / f"{ticker}_news.parquet"
-
-
-def main(ticker: str) -> None:
-    all_parquet = RAW_DIR / "news_all.parquet"
-    out = ticker_parquet(ticker)
+def build_corpus(con: duckdb.DuckDBPyConnection) -> None:
     RAW_DIR.mkdir(parents=True, exist_ok=True)
-
-    # Pull the source into data/raw/ rather than the HF cache; skipped if already there.
-    src = Path(hf_hub_download(repo_id=REPO_ID, filename=FILENAME, repo_type="dataset", local_dir=RAW_DIR))
-    print(f"source: {src} ({src.stat().st_size / 1e6:.0f} MB)")
-
-    con = duckdb.connect()
+    # Into data/raw/ rather than the HF cache; downloaded again on every run.
+    src = Path(hf_hub_download(repo_id=REPO_ID, filename=FILENAME, repo_type="dataset",
+                               local_dir=RAW_DIR, force_download=True))
+    print(f"source: {src} ({src.stat().st_size / 1e6:.0f} MB), converting to {ALL_PARQUET} ...")
     con.sql("INSTALL json; LOAD json;")
-
-    if not all_parquet.exists():
-        print(f"converting to {all_parquet} ...")
-        con.sql(f"COPY (SELECT * FROM read_json_auto('{src}')) TO '{all_parquet}' (FORMAT parquet)")
-        print(f"  {all_parquet.stat().st_size / 1e6:.0f} MB")
-        print(con.sql(f"DESCRIBE SELECT * FROM '{all_parquet}'").df())
-
-    con.sql(f"COPY (SELECT * FROM '{all_parquet}' WHERE stock = '{ticker}') TO '{out}' (FORMAT parquet)")
-    n = con.sql(f"SELECT count(*) FROM '{out}'").fetchone()[0]
-    print(f"wrote {out}: {n} rows")
+    # Written to a temporary file and renamed, so a failed run leaves the old file in place.
+    tmp = ALL_PARQUET.with_suffix(".parquet.tmp")
+    con.sql(f"COPY (SELECT * FROM read_json_auto('{src}')) TO '{tmp}' (FORMAT parquet)")
+    tmp.replace(ALL_PARQUET)
+    print(f"  {ALL_PARQUET.stat().st_size / 1e6:.0f} MB")
 
 
-def read_headlines(ticker: str) -> None:
-    import pandas as pd
-
-    df = pd.read_parquet(ticker_parquet(ticker))
-    print(df.shape)
-    print(df.head())
+def split_ticker(con: duckdb.DuckDBPyConnection, ticker: str) -> None:
+    for path, op in [(RAW_DIR / f"{ticker}_news.parquet", "="), (RAW_DIR / f"no_{ticker}_news.parquet", "<>")]:
+        con.sql(f"COPY (SELECT * FROM '{ALL_PARQUET}' WHERE stock {op} '{ticker}') TO '{path}' (FORMAT parquet)")
+        n = con.sql(f"SELECT count(*) FROM '{path}'").fetchall()[0][0]
+        print(f"wrote {path}: {n} rows")
 
 
 def _ticker(value: str) -> str:
@@ -62,7 +49,8 @@ def _ticker(value: str) -> str:
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("ticker", nargs="?", default="AAPL", type=_ticker, help="default: AAPL")
-    ticker = parser.parse_args().ticker
-    main(ticker)
-    read_headlines(ticker)
+    parser.add_argument("tickers", nargs="+", type=_ticker)
+    con = duckdb.connect()
+    build_corpus(con)
+    for ticker in parser.parse_args().tickers:
+        split_ticker(con, ticker)
