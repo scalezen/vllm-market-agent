@@ -30,11 +30,9 @@ path better understood, choose the serving path.
 2. **No performance claim without a number.** Every claim needs a reproducible
    benchmark script plus committed results recording hardware, model, quantisation
    and server config.
-3. **Every non-obvious decision gets 5–10 lines in `docs/decisions.md`**: what was
-   chosen, what was rejected, why. That file is the interview script.
-4. **Prefer deleting to adding.** Dead scripts, `.bak` files and tracked
+3. **Prefer deleting to adding.** Dead scripts, `.bak` files and tracked
    `__pycache__` are all fair game.
-5. Prefer ~40 lines of stdlib to a framework. Frameworks hide the thing being
+4. Prefer ~40 lines of stdlib to a framework. Frameworks hide the thing being
    measured.
 
 ## The engineered slice
@@ -48,7 +46,5 @@ Exactly one part of this repo is held to production standard — currently the
 - a benchmark that exercises it
 
 Everything else is explicitly **scaffolding** and is labelled as such in the README.
-Do not silently upgrade the scaffolding — ask first. "This part I engineered, this
-part is exploratory" is a strong answer in an interview; a uniformly half-polished
-repo is not.
+Do not silently upgrade the scaffolding — ask first.
 
