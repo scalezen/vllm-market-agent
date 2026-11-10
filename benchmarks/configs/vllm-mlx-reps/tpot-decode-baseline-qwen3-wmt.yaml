@@ -1,0 +1,39 @@
+# TPOT test: decode time per token, default engine. TPOT analog of ttft-prefill-baseline-test.yaml.
+# Each max_tokens value is a separate request, stamped when token max_tokens arrives.
+# Fit time vs max_tokens: slope = TPOT, intercept ~ prefill.
+# Quote strings: YAML reads unquoted ON/NO/YES/OFF as booleans.
+
+server:
+  model: "mlx-community/Qwen3-4B-4bit"
+  tool_call_parser: "qwen"
+  reasoning_parser: "qwen3"
+  serve_script: "benchmarks/serve.sh"
+  ready_timeout_s: 300
+  continuous_batching: false
+  max_num_seqs: null            # needs continuous_batching
+  prefix_cache: false           # true also drops the per-request cache-busting id
+  kv_cache_quantization: false  # only takes effect with continuous_batching + prefix_cache
+  kv_cache_quantization_bits: null
+
+prompt:
+  ticker: "WMT"
+  signal_file: "data/raw/WMT_news.parquet"
+  noise_file: "data/raw/no_WMT_news.parquet"
+  #noise_levels: [50, 200, 500]
+  #noise_levels: [50, 100, 200, 300, 500, 750]
+  noise_levels: [100]
+  system: "You are a quantitative financial assistant. For the requested ticker, call get_stock_news then your response."
+  user: "Based only on the headlines above, will the price target for {ticker} go up?"
+  report: "Using only the tool results above, answer as JSON: a confidence between 0 and 1, and a summary that directly answers what was asked."
+
+request:
+  prefill_only: true  # stop at max_tokens and stamp there
+  # A row fails if the model stops before max_tokens (completion_tokens < max_tokens).
+  # With thinking on, Qwen3 should still be reasoning at 64 tokens; check the error column.
+  max_tokens: [2, 16, 32, 64, 128]
+  enable_thinking: true
+
+run:
+  concurrencies: [1]
+  reps: 3
+  results_dir: "benchmarks/results"
