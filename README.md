@@ -13,11 +13,11 @@ continuous batching gives. A stock-news sentiment agent supplies the prompts.
 
 ## What is measured
 
-| Experiment | Measured against | Notebook |
-|---|---|---|
-| Prefill | Time to first token vs prompt length (1.4k–21k tokens) | [`benchmarks/prefill_ttft.ipynb`](benchmarks/prefill_ttft.ipynb) |
-| Decode | Time per output token vs prompt length | [`benchmarks/decode_tpot.ipynb`](benchmarks/decode_tpot.ipynb) |
-| Batching | Time to finish a fixed workload, and decode throughput, vs requests in flight (1–64) | [`benchmarks/batch_decode.ipynb`](benchmarks/batch_decode.ipynb) |
+| Experiment | Measured against |
+|---|---|
+| Prefill | Time to first token vs prompt length (1.4k–21k tokens) |
+| Decode | Time to output token vs number of output tokens |
+| Batching | Time to finish a fixed workload, and decode throughput, vs requests in flight (1–64) |
 
 ## Reproduce
 
