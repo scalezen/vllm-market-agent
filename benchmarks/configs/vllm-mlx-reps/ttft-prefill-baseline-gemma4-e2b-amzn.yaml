@@ -37,5 +37,5 @@ request:
 
 run:
   concurrencies: [1]
-  reps: 3
+  reps: 5 
   results_dir: "benchmarks/results"
