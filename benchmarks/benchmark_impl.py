@@ -208,22 +208,22 @@ async def timed_stream_request(model: str, messages: list[dict], request: dict) 
             if answer and ttat is None:
                 ttat = time.perf_counter() - t0
     except Exception as exc:  # 503s under load, context overflow, timeouts are results too
-        return RequestResult(False, time.perf_counter() - t0, error=str(exc)[:150])
+        return RequestResult(ok=False, e2e_s=time.perf_counter() - t0, error=str(exc)[:150])
     completion = usage.completion_tokens if usage else None
     if request["prefill_only"]:
         # Stamp only if all max_tokens were generated: a stream can end cleanly
         # with no tokens (seen at ~22k-token prompts).
         ttft = finish_s if completion is not None and completion >= request["max_tokens"] else None
     return RequestResult(
-        ttft is not None,
-        time.perf_counter() - t0,
-        ttft,
-        ttat,
-        usage.prompt_tokens if usage else None,
-        completion,
-        reasoning_chars,
-        chunks,
-        "" if ttft is not None else f"no TTFT (finish_reason={finish}, completion_tokens={completion})",
+        ok=ttft is not None,
+        e2e_s=time.perf_counter() - t0,
+        ttft_s=ttft,
+        ttat_s=ttat,
+        prompt_tokens=usage.prompt_tokens if usage else None,
+        completion_tokens=completion,
+        reasoning_chars=reasoning_chars,
+        chunks=chunks,
+        error="" if ttft is not None else f"no TTFT (finish_reason={finish}, completion_tokens={completion})",
     )
 
 

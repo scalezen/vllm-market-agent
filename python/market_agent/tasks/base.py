@@ -1,12 +1,14 @@
 """What a task is: prompts, tools and the report it produces."""
 import hashlib
-from dataclasses import dataclass
+
+from pydantic import BaseModel, ConfigDict
 
 from ..reports import BaseReport
 
 
-@dataclass(frozen=True)
-class Task:
+class Task(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
     name: str
     description: str
     system_prompt: str

@@ -38,7 +38,7 @@ class Usage:
     thinking_tokens: int = 0
     embedding_tokens: int = 0
     llm_seconds: float = 0.0  # time inside generation requests, excluding queueing for a slot
-    _lock: threading.Lock = field(default_factory=threading.Lock, repr=False)
+    _lock: threading.Lock = field(default_factory=threading.Lock, repr=False, compare=False)
 
     def add_chat(self, response, seconds: float) -> None:
         u = response.usage

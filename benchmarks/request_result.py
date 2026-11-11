@@ -1,9 +1,10 @@
 """Timings and token counts for one streamed benchmark request."""
-from dataclasses import dataclass
+from pydantic import BaseModel, ConfigDict
 
 
-@dataclass
-class RequestResult:
+class RequestResult(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
     ok: bool
     e2e_s: float
     ttft_s: float | None = None  # first content-bearing chunk, reasoning or answer
