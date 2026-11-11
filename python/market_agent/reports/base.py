@@ -1,10 +1,12 @@
 """Base class for every report a task can produce."""
 from typing import get_args
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class BaseReport(BaseModel):
+    model_config = ConfigDict(frozen=True)  # inherited by every report
+
     summary: str = Field(description="One-sentence justification or answer, grounded in the tool results.")
 
     @classmethod

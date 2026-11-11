@@ -25,7 +25,6 @@ this file is the CLI.
 import argparse
 import asyncio
 import json
-from dataclasses import replace
 from pathlib import Path
 
 from loguru import logger
@@ -51,9 +50,9 @@ def build_task(args: argparse.Namespace) -> Task:
     """The generic task, with --system appended and --user substituted, if given."""
     task = TASKS["generic"]
     if args.system:
-        task = replace(task, system_prompt=task.system_prompt + " " + args.system)
+        task = task.model_copy(update=dict(system_prompt=task.system_prompt + " " + args.system))
     if args.user:
-        task = replace(task, user_prompt=args.user)
+        task = task.model_copy(update=dict(user_prompt=args.user))
     return task
 
 

@@ -9,7 +9,6 @@ Requires the server (benchmarks/serve.sh); skips cleanly if it's not reachable:
     python -m pytest tests/test_agent_integration.py -v
 """
 import asyncio
-from dataclasses import replace
 
 import pytest
 from openai import APIConnectionError
@@ -90,19 +89,18 @@ def _consumer_fan_task(ticker: str):
     prompt, so the ticker is substituted here by hand rather than left as a
     literal "{ticker}" for the framework to fill in.
     """
-    return replace(
-        TASKS["generic"],
+    return TASKS["generic"].model_copy(update=dict(
         system_prompt=(
             f"You are a quantitative financial assistant. {ALL_TOOLS_INSTRUCTION} "
             f"Assume you are a fan of consumer products from {ticker}."
         ),
         user_prompt="How will this business do in the age of AI?",
-    )
+    ))
 
 
 def test_sentiment_agent_googl(loop):
     # tasks/sentiment.py's own system prompt already mandates using all three tools.
-    task = replace(TASKS["sentiment"], user_prompt="Find the sentiment for {ticker}.")
+    task = TASKS["sentiment"].model_copy(update=dict(user_prompt="Find the sentiment for {ticker}."))
     result = _run(loop, "GOOGL", task)
     _assert_ran_successfully(result, SENTIMENT_FIELDS)
     _assert_min_tools_called(result, len(task.tools))
@@ -124,10 +122,9 @@ def test_generic_agent_aapl(loop):
 
 
 def test_embeddings(loop):
-    task = replace(
-        _consumer_fan_task("AAPL"),
+    task = _consumer_fan_task("AAPL").model_copy(update=dict(
         tools=("get_stock_news_top_k", "get_technical_indicators", "get_analyst_recommendations"),
-    )
+    ))
     result = _run(loop, "AAPL", task)
     _assert_ran_successfully(result, GENERIC_FIELDS)
     _assert_min_tools_called(result, len(task.tools))
@@ -139,10 +136,9 @@ def test_generic_agent_rsi_prompt(loop):
     # The narrower question from our earlier discussion: does a specific ask
     # still get a populated report, regardless of how many tools it calls --
     # no ALL_TOOLS_INSTRUCTION and no minimum-tools assertion here on purpose.
-    task = replace(
-        TASKS["generic"],
+    task = TASKS["generic"].model_copy(update=dict(
         system_prompt="You are a quantitative financial assistant. Respond as if you are a technical analyst.",
         user_prompt="What is {ticker}'s current RSI?",
-    )
+    ))
     result = _run(loop, "AAPL", task)
     _assert_ran_successfully(result, GENERIC_FIELDS)
