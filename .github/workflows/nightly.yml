@@ -28,3 +28,13 @@ jobs:
         working-directory: cpp/numerical_primitives
       - run: python -c "import sys; sys.path.insert(0, 'python'); import numerical_primitives; assert 'native' in numerical_primitives.available_backends()"
       - run: pytest tests/test_numerical_primitives_similarity.py -v
+
+  load-config:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install -e . pytest
+      - run: pytest tests/test_load_config.py -v
