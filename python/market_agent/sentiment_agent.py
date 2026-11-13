@@ -15,6 +15,7 @@ Layout: config.py (settings, clients), usage.py (token accounting),
 tools.py (tools the model calls), agent.py (agent loop), store.py (run store),
 backtest.py (scoring); this file is the CLI.
 """
+
 import argparse
 import asyncio
 import json
@@ -24,8 +25,8 @@ from loguru import logger
 
 from .agent import check_server, run_watchlist
 from .config import DEFAULT_CONCURRENCY
-from .tasks import TASKS
 from .store import RUNS_DIR, save_run
+from .tasks import TASKS
 
 
 def load_tickers(args: argparse.Namespace) -> list[str]:

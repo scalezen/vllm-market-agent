@@ -1,4 +1,5 @@
 """What a task is: prompts, tools and the report it produces."""
+
 import hashlib
 
 from pydantic import BaseModel, ConfigDict

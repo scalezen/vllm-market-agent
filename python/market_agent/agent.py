@@ -1,10 +1,11 @@
 """The agent: a tool-calling loop, then a schema-constrained JSON report. What to ask,
 which tools to offer and what the report looks like all come from a Task (see tasks/)."""
+
 import asyncio
 import json
 import sys
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from loguru import logger
 from openai import APIConnectionError
@@ -64,7 +65,7 @@ async def run_agent(ticker: str, task: Task) -> dict:
     functions = get_tool_functions(task.tools)
     user_prompt = task.user_prompt.format(ticker=ticker)
     messages = [
-        {"role": "system", "content": task.system_prompt + DATE_NOTE.format(today=datetime.now(timezone.utc).date())},
+        {"role": "system", "content": task.system_prompt + DATE_NOTE.format(today=datetime.now(UTC).date())},
         {"role": "user", "content": user_prompt},
     ]
     tool_outputs: dict[str, str] = {}
@@ -85,7 +86,7 @@ async def run_agent(ticker: str, task: Task) -> dict:
         logger.info("{} step {}: {}", ticker, step, [c.function.name for c in message.tool_calls])
         messages.append(message.model_dump(exclude_none=True))
         observations = await asyncio.gather(*(run_tool(c, functions) for c in message.tool_calls))
-        for call, observation in zip(message.tool_calls, observations):
+        for call, observation in zip(message.tool_calls, observations, strict=True):
             logger.debug("{} <- {}", call.function.name, observation)
             tool_outputs[call.function.name] = observation
             messages.append({"role": "tool", "tool_call_id": call.id, "content": observation})
@@ -118,7 +119,7 @@ async def run_agent(ticker: str, task: Task) -> dict:
         "model": MODEL_NAME,
         "tool_outputs": tool_outputs,
         "usage": usage.as_dict(time.perf_counter() - started),
-        "timestamp": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "timestamp": datetime.now(UTC).isoformat(timespec="seconds"),
     }
 
 

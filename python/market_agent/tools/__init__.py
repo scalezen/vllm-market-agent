@@ -3,6 +3,7 @@
 To add a tool: create a module here with a @register_tool function and import
 it below.
 """
+
 from .registry import all_tool_names, get_tool_functions, get_tools
 
 # Registration order is the order the model sees the tools in; keep it deliberate, not alphabetical.

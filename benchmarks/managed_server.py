@@ -1,4 +1,5 @@
 """Starts a vLLM-MLX server for one benchmark run and stops it afterwards."""
+
 import os
 import subprocess
 import sys

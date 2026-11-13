@@ -1,13 +1,13 @@
 """Analyst tool: rating counts, price targets and recent rating changes."""
+
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pandas as pd
 import yfinance as yf
 from loguru import logger
 
 from ..config import ANALYST_CHANGES_MAX_AGE_DAYS
-
 from .registry import TICKER_PARAM, register_tool
 
 
@@ -64,4 +64,4 @@ def get_analyst_recommendations(ticker: str) -> str:
     if not result:
         return f"No analyst data found for {ticker}."
     # `as_of` is when the snapshots were fetched (UTC date).
-    return json.dumps({"as_of": datetime.now(timezone.utc).date().isoformat(), **result})
+    return json.dumps({"as_of": datetime.now(UTC).date().isoformat(), **result})

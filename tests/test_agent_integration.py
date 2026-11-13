@@ -8,6 +8,7 @@ not that the content is correct, since that's exactly what varies run to run.
 Requires the server (benchmarks/serve.sh); skips cleanly if it's not reachable:
     python -m pytest tests/test_agent_integration.py -v
 """
+
 import asyncio
 
 import pytest
@@ -75,14 +76,12 @@ def _assert_tools_called(result: dict, task) -> None:
     assert called, "no tool was called"
     assert called <= set(task.tools), f"called {sorted(called - set(task.tools))}, not offered by the task"
 
+
 # Reinforces tool coverage explicitly, for the two generic-task cases below
 # whose base system prompt (tasks/generic.py) no longer states this itself.
 # However this is not guaranteed, see the docstring in _assert_tools_called for
 # explanation of why.
-ALL_TOOLS_INSTRUCTION = (
-    "You must use all the tools available to you "
-    "before answering."
-)
+ALL_TOOLS_INSTRUCTION = "You must use all the tools available to you " "before answering."
 
 
 def _consumer_fan_task(ticker: str):
@@ -92,13 +91,15 @@ def _consumer_fan_task(ticker: str):
     prompt, so the ticker is substituted here by hand rather than left as a
     literal "{ticker}" for the framework to fill in.
     """
-    return TASKS["generic"].model_copy(update=dict(
-        system_prompt=(
-            f"You are a quantitative financial assistant. {ALL_TOOLS_INSTRUCTION} "
-            f"Assume you are a fan of consumer products from {ticker}."
-        ),
-        user_prompt="How will this business do in the age of AI?",
-    ))
+    return TASKS["generic"].model_copy(
+        update=dict(
+            system_prompt=(
+                f"You are a quantitative financial assistant. {ALL_TOOLS_INSTRUCTION} "
+                f"Assume you are a fan of consumer products from {ticker}."
+            ),
+            user_prompt="How will this business do in the age of AI?",
+        )
+    )
 
 
 def test_sentiment_agent_googl(loop):
@@ -125,9 +126,11 @@ def test_generic_agent_aapl(loop):
 
 
 def test_embeddings(loop):
-    task = _consumer_fan_task("AAPL").model_copy(update=dict(
-        tools=("get_stock_news_top_k", "get_technical_indicators", "get_analyst_recommendations"),
-    ))
+    task = _consumer_fan_task("AAPL").model_copy(
+        update=dict(
+            tools=("get_stock_news_top_k", "get_technical_indicators", "get_analyst_recommendations"),
+        )
+    )
     result = _run(loop, "AAPL", task)
     _assert_ran_successfully(result, GENERIC_FIELDS)
     _assert_tools_called(result, task)
@@ -138,9 +141,11 @@ def test_generic_agent_rsi_prompt(loop):
     # The narrower question from our earlier discussion: does a specific ask
     # still get a populated report, regardless of how many tools it calls --
     # no ALL_TOOLS_INSTRUCTION and no minimum-tools assertion here on purpose.
-    task = TASKS["generic"].model_copy(update=dict(
-        system_prompt="You are a quantitative financial assistant. Respond as if you are a technical analyst.",
-        user_prompt="What is {ticker}'s current RSI?",
-    ))
+    task = TASKS["generic"].model_copy(
+        update=dict(
+            system_prompt="You are a quantitative financial assistant. Respond as if you are a technical analyst.",
+            user_prompt="What is {ticker}'s current RSI?",
+        )
+    )
     result = _run(loop, "AAPL", task)
     _assert_ran_successfully(result, GENERIC_FIELDS)

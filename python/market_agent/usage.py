@@ -1,4 +1,5 @@
 """Token accounting."""
+
 import threading
 from contextvars import ContextVar
 from dataclasses import dataclass, field

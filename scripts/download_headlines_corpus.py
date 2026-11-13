@@ -6,6 +6,7 @@ Downloads the source and converts it to data/raw/news_all.parquet, replacing any
 copy. Then, for each ticker, writes data/raw/<TICKER>_news.parquet (signal
 headlines) and data/raw/no_<TICKER>_news.parquet (every other headline: the noise).
 """
+
 import argparse
 import re
 from pathlib import Path
@@ -22,8 +23,9 @@ ALL_PARQUET = RAW_DIR / "news_all.parquet"
 def build_corpus(con: duckdb.DuckDBPyConnection) -> None:
     RAW_DIR.mkdir(parents=True, exist_ok=True)
     # Into data/raw/ rather than the HF cache; downloaded again on every run.
-    src = Path(hf_hub_download(repo_id=REPO_ID, filename=FILENAME, repo_type="dataset",
-                               local_dir=RAW_DIR, force_download=True))
+    src = Path(
+        hf_hub_download(repo_id=REPO_ID, filename=FILENAME, repo_type="dataset", local_dir=RAW_DIR, force_download=True)
+    )
     print(f"source: {src} ({src.stat().st_size / 1e6:.0f} MB), converting to {ALL_PARQUET} ...")
     con.sql("INSTALL json; LOAD json;")
     # Written to a temporary file and renamed, so a failed run leaves the old file in place.

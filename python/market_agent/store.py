@@ -5,6 +5,7 @@
 Each file holds the report, usage, model name and the raw tool outputs the
 report was based on, so runs can be re-scored or re-analysed later.
 """
+
 import json
 import os
 from datetime import datetime
@@ -13,7 +14,17 @@ from pathlib import Path
 RUNS_DIR = Path(os.environ.get("RUNS_DIR", "runs"))
 
 # Keys agent.py puts at the top level of a run; anything else belongs to the report.
-_TOP_LEVEL_KEYS = {"ticker", "task", "user_prompt", "prompt_hash", "report", "model", "tool_outputs", "usage", "timestamp"}
+_TOP_LEVEL_KEYS = {
+    "ticker",
+    "task",
+    "user_prompt",
+    "prompt_hash",
+    "report",
+    "model",
+    "tool_outputs",
+    "usage",
+    "timestamp",
+}
 
 
 def save_run(result: dict, runs_dir: Path = RUNS_DIR) -> Path:
