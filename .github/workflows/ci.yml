@@ -9,10 +9,10 @@ on:
     paths:
       - 'cpp/numerical_primitives/**'
       - 'python/numerical_primitives/**'
-      - 'tests/test_numerical_primitives_similarity.py'
       - 'benchmarks/**'
-      - 'tests/test_load_config.py'
-      - 'tests/test_build_messages.py'
+      - 'tests/**'
+      - 'python/market_agent/**'
+      - 'scripts/**'
       - 'pyproject.toml'
       - '.github/workflows/ci.yml'
   workflow_dispatch:
@@ -40,3 +40,17 @@ jobs:
           python-version: '3.11'
       - run: pip install -e . pytest
       - run: pytest tests/test_load_config.py tests/test_build_messages.py -v
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      # Pinned: a new release can add rules or change formatting.
+      # -e . so mypy sees the real openai and pydantic types.
+      - run: pip install -e . ruff==0.17.5 black==26.10.1 mypy==2.4.1
+      - run: ruff check .
+      - run: black --check .
+      - run: mypy

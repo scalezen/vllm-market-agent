@@ -7,6 +7,7 @@ Each config runs in a fresh process, so nothing carries over between runs: no
 memory held by the last run, and no client tied to a closed event loop or a
 stopped server (the module-level aclient can't be reused across asyncio.run).
 """
+
 import argparse
 import subprocess
 import sys

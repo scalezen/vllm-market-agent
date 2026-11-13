@@ -1,7 +1,9 @@
 """Top-k headlines by cosine similarity to a query, from the local per-ticker corpus."""
+
 import json
 
 from loguru import logger
+
 from numerical_primitives import topk_cosine
 
 from .. import corpus

@@ -10,6 +10,7 @@ the connection is slow.
     python -m pytest tests/test_agent_models.py::test_qwen -v -s
     python -m pytest tests/test_agent_models.py::test_gemma -v -s
 """
+
 import asyncio
 from pathlib import Path
 
@@ -24,12 +25,14 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 SERVE_SCRIPT = REPO_ROOT / "benchmarks" / "serve.sh"
 READY_TIMEOUT_S = 300
 TICKER = "GOOGL"
-#TICKER = "AAPL"
-TASK = TASKS["generic"].model_copy(update=dict(
-    #system_prompt="You are a quantitative financial assistant. For the requested ticker, call get_stock_news then your response.",
-    system_prompt="You are a quantitative financial assistant. For the requested ticker, call all the available tools, then generate your response.",
-    user_prompt="Is this {ticker} going to go up or down?",
-))
+# TICKER = "AAPL"
+TASK = TASKS["generic"].model_copy(
+    update=dict(
+        # system_prompt="You are a quantitative financial assistant. For the requested ticker, call get_stock_news then your response.",
+        system_prompt="You are a quantitative financial assistant. For the requested ticker, call all the available tools, then generate your response.",
+        user_prompt="Is this {ticker} going to go up or down?",
+    )
+)
 
 pytestmark = [
     pytest.mark.slow,

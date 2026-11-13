@@ -1,4 +1,5 @@
 """Unit tests for corpus.py: duckdb filtering + lru_cache, no real embedding calls."""
+
 from unittest.mock import MagicMock
 
 import numpy as np

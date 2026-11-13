@@ -4,6 +4,7 @@ Import failure here means the native extension hasn't been built yet, not an
 error; `available_backends` and `native_topk_cosine` are how callers find out
 and degrade.
 """
+
 from typing import Any
 
 import numpy as np

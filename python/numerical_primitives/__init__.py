@@ -2,6 +2,7 @@
 
 Pure numpy or C++ kernel based on the backend arg of topk_cosine.
 """
+
 import numpy as np
 
 from ._backend import available_backends, native_topk_cosine
@@ -24,7 +25,9 @@ def topk_cosine(matrix: np.ndarray, query: np.ndarray, k: int, backend: str = "a
         return topk_cosine_numpy(matrix, query, k)
     if backend == "native":
         return native_topk_cosine(matrix, query, k)
-    raise ValueError(f"unknown backend {backend!r}; available: {['numpy'] + [b for b in available_backends() if b != 'numpy']}")
+    raise ValueError(
+        f"unknown backend {backend!r}; available: {['numpy'] + [b for b in available_backends() if b != 'numpy']}"
+    )
 
 
 def _validate(matrix: np.ndarray, query: np.ndarray, k: int) -> None:

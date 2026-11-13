@@ -1,4 +1,5 @@
 """Timings and token counts for one streamed benchmark request."""
+
 from pydantic import BaseModel, ConfigDict
 
 

@@ -1,4 +1,5 @@
 """Technical-indicator tool: RSI, moving averages and MACD from daily closes."""
+
 import json
 from datetime import datetime, time
 from zoneinfo import ZoneInfo

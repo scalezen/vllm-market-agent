@@ -7,8 +7,9 @@ The function-calling schema is built from the signature. Parameters with a
 default (like `n`) are left out of the schema, so the model only supplies the
 required ones.
 """
+
 import inspect
-from typing import Callable
+from collections.abc import Callable, Sequence
 
 TICKER_PARAM = {"ticker": "The stock ticker symbol (e.g., AAPL, GOOGL)"}
 
@@ -52,20 +53,20 @@ def all_tool_names() -> list[str]:
     return list(_FUNCTIONS)
 
 
-def _check(names: list[str]) -> None:
+def _check(names: Sequence[str]) -> None:
     unknown = [n for n in names if n not in _FUNCTIONS]
     if unknown:
         raise KeyError(f"Unknown tool(s) {unknown}; available: {all_tool_names()}")
 
 
-def get_tools(names: list[str] | None = None) -> list[dict]:
+def get_tools(names: Sequence[str] | None = None) -> list[dict]:
     """Function-calling schemas for `names` (default: all tools), in the order given."""
     names = all_tool_names() if names is None else names
     _check(names)
     return [_SCHEMAS[n] for n in names]
 
 
-def get_tool_functions(names: list[str] | None = None) -> dict[str, Callable]:
+def get_tool_functions(names: Sequence[str] | None = None) -> dict[str, Callable]:
     """name -> function for `names` (default: all tools)."""
     names = all_tool_names() if names is None else names
     _check(names)

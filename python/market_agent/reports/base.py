@@ -1,4 +1,5 @@
 """Base class for every report a task can produce."""
+
 from typing import get_args
 
 from pydantic import BaseModel, ConfigDict, Field

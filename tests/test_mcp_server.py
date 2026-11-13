@@ -1,10 +1,12 @@
 """Tests for the FastMCP wrapper (mcp_server.py), not for the tools' own logic
 (no network/yfinance calls here -- see tools/ for that).
 """
+
 import asyncio
 
 import pytest
 from fastmcp import Client
+from fastmcp.exceptions import ToolError
 
 from market_agent.mcp_server import build_server
 from market_agent.tools import all_tool_names, get_tools
@@ -19,9 +21,11 @@ def _run(coro):
 
 def test_registers_every_tool_from_the_registry():
     server = build_server()
+
     async def list_names():
         async with Client(server) as client:
             return {t.name for t in await client.list_tools()}
+
     assert _run(list_names()) == set(all_tool_names())
 
 
@@ -102,6 +106,6 @@ def test_missing_required_argument_is_rejected(stub_server):
         async with Client(server) as client:
             return await client.call_tool("get_stock_news", {})
 
-    with pytest.raises(Exception):  # fastmcp raises a tool/validation error, not a bare crash
+    with pytest.raises(ToolError):  # a validation error from fastmcp, not a bare crash
         _run(call_without_ticker())
     assert calls == []  # rejected before the stub ran

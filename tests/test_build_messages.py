@@ -44,7 +44,7 @@ def test_inputs_not_modified():
 
 
 def test_bust_puts_an_id_at_the_very_front():
-    (system, *rest) = build_messages(PROMPT, SIGNAL, NOISE, bust_prefix_cache=True)
+    system, *rest = build_messages(PROMPT, SIGNAL, NOISE, bust_prefix_cache=True)
     assert BUST_ID.match(system["content"])
     assert BUST_ID.sub("", system["content"]) == PROMPT["system"]
     # Only the system message changes; everything after it is the same as unbusted.
@@ -55,7 +55,7 @@ def test_bust_gives_every_request_a_fresh_id():
     n = 100
     systems = [build_messages(PROMPT, SIGNAL, NOISE, True)[0]["content"] for _ in range(n)]
     assert len(set(systems)) == n
-    # The build_messages method prepends system_prompt with [request 
+    # The build_messages method prepends system_prompt with [request
     assert all(s.startswith("[request ") for s in systems)
 
 

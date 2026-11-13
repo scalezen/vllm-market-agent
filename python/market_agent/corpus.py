@@ -1,4 +1,5 @@
 """Per-ticker headline corpus and its embedding index."""
+
 from functools import lru_cache
 from pathlib import Path
 

@@ -20,6 +20,7 @@ reported (n, mean return) but have no hit rate.
 Only runs old enough to have N trading days of history are scored, so this
 needs runs collected over time (e.g. a daily watchlist run).
 """
+
 import argparse
 import json
 from datetime import date, datetime, timedelta
@@ -139,9 +140,7 @@ def main() -> None:
         raise SystemExit(f"Unknown task {args.task!r}. Available: {list(TASKS)}")
     signals = signal_fields(task.report_model)
     if not signals:
-        raise SystemExit(
-            f"Task {args.task!r} has no Bullish/Bearish-style field, so there is nothing to backtest."
-        )
+        raise SystemExit(f"Task {args.task!r} has no Bullish/Bearish-style field, so there is nothing to backtest.")
 
     runs = load_runs(args.runs_dir, task=args.task)
     if not runs:

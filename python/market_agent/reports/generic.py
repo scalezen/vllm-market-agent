@@ -1,4 +1,5 @@
 """Report for the generic (free-form question) task."""
+
 from pydantic import Field, field_validator
 
 from .base import BaseReport

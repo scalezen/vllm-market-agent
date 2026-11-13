@@ -1,4 +1,5 @@
 """load_config: tests to check if bad configs are rejected."""
+
 import copy
 
 import pytest
@@ -64,9 +65,7 @@ def test_valid_config_loads_and_is_normalised(tmp_path):
     assert cfg["run"]["requests"] is None
 
 
-@pytest.mark.parametrize(
-    "path", sorted(CONFIGS_DIR.rglob("*.yaml")), ids=lambda p: str(p.relative_to(CONFIGS_DIR))
-)
+@pytest.mark.parametrize("path", sorted(CONFIGS_DIR.rglob("*.yaml")), ids=lambda p: str(p.relative_to(CONFIGS_DIR)))
 def test_committed_configs_load(path):
     load_config(path)
 
@@ -92,7 +91,10 @@ BAD = {
     "max_tokens repeated": ({"request.max_tokens": [2, 2]}, "prefill_only needs max_tokens >= 1"),
     "zero ready timeout": ({"server.ready_timeout_s": 0}, "ready_timeout_s must be positive"),
     "max_num_seqs without batching": ({"server.continuous_batching": False}, "max_num_seqs needs continuous_batching"),
-    "kv bits not 4 or 8": ({"server.kv_cache_quantization": True, "server.kv_cache_quantization_bits": 6}, "must be 4, 8 or null"),
+    "kv bits not 4 or 8": (
+        {"server.kv_cache_quantization": True, "server.kv_cache_quantization_bits": 6},
+        "must be 4, 8 or null",
+    ),
     "kv bits without kv quant": ({"server.kv_cache_quantization_bits": 4}, "bits needs kv_cache_quantization"),
     "zero stream_interval": ({"server.stream_interval": 0}, "stream_interval must be >= 1 or null"),
     "requests below concurrency": ({"run.requests": 2}, "run.requests must be >= every concurrency"),
@@ -104,4 +106,3 @@ def test_bad_config_is_rejected(tmp_path, edits, message):
     with pytest.raises(ValueError) as exc:
         load_config(write(tmp_path, changed(edits)))
     assert message in str(exc.value)
-

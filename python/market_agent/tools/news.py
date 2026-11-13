@@ -1,6 +1,7 @@
 """News tool: recent dated headlines with embedding-based near-duplicate removal."""
+
 import json
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import numpy as np
 import yfinance as yf
@@ -8,7 +9,6 @@ from loguru import logger
 
 from ..config import DEDUP_THRESHOLD, EMBED_MODEL, NEWS_MAX_AGE_DAYS, client
 from ..usage import current_usage
-
 from .registry import TICKER_PARAM, register_tool
 
 
@@ -48,7 +48,7 @@ def _published(content: dict) -> datetime | None:
         if raw := content.get("pubDate"):
             return datetime.fromisoformat(raw.replace("Z", "+00:00"))
         if ts := content.get("providerPublishTime"):
-            return datetime.fromtimestamp(ts, timezone.utc)
+            return datetime.fromtimestamp(ts, UTC)
     except (ValueError, TypeError, OSError):
         pass
     return None
@@ -66,7 +66,7 @@ def get_stock_news(ticker: str, n: int = 10) -> str:
     except Exception as exc:  # network errors, Yahoo rate limits, etc.
         return f"Error fetching news for {ticker}: {exc}"
 
-    cutoff = datetime.now(timezone.utc) - timedelta(days=NEWS_MAX_AGE_DAYS)
+    cutoff = datetime.now(UTC) - timedelta(days=NEWS_MAX_AGE_DAYS)
     dated = []
     for item in news:
         # yfinance >= 0.2.50 nests fields under "content"; older versions are flat.

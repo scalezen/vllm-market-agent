@@ -15,7 +15,7 @@ continuous batching gives. A stock-news sentiment agent supplies the prompts.
 
 | Experiment | Measured against |
 |---|---|
-| Prefill | Time to first token vs prompt length (1.4k–21k tokens) |
+| Prefill | Time to token 2 (prefill plus one decode step) vs prompt length (1.4k–20k tokens) |
 | Decode | Time to output token vs number of output tokens |
 | Batching | Time to finish a fixed workload, and decode throughput, vs requests in flight (1–64) |
 

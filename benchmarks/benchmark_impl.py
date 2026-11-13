@@ -6,6 +6,7 @@ Starts benchmarks/serve.sh with the config's server settings, streams each reque
 and appends one row per request to benchmarks/results/<config name>.csv. Each row
 records the config hash, git commit, model and hardware.
 """
+
 import argparse
 import asyncio
 import csv
@@ -19,6 +20,8 @@ from pathlib import Path
 
 import duckdb
 import yaml
+from openai import omit
+from openai.types.chat import ChatCompletionMessageParam, ChatCompletionMessageToolCallParam
 
 from managed_server import ManagedServer
 from market_agent.config import aclient
@@ -29,7 +32,8 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 CONFIGS_DIR = REPO_ROOT / "benchmarks" / "configs"
 
 OPTIONAL_INT = (int, type(None))
-SCHEMA = {
+# section -> field -> allowed type(s), as isinstance() takes them
+SCHEMA: dict[str, dict[str, type | tuple[type, ...]]] = {
     "server": {
         "model": str,
         "tool_call_parser": str,
@@ -141,11 +145,13 @@ def _titles(path: Path, limit: int | None = None) -> list[str]:
     return [h for (h,) in duckdb.execute(sql, [str(path)]).fetchall()]
 
 
-def build_messages(prompt: dict, signal: list[str], noise: list[str], bust_prefix_cache: bool) -> list[dict]:
+def build_messages(
+    prompt: dict, signal: list[str], noise: list[str], bust_prefix_cache: bool
+) -> list[ChatCompletionMessageParam]:
     # A unique id at the very front makes every prompt distinct from its first
     # token, so no request reuses another's cached KV and TTFT is a cold prefill.
     system = f"[request {uuid.uuid4().hex[:8]}] {prompt['system']}" if bust_prefix_cache else prompt["system"]
-    tool_call = {
+    tool_call: ChatCompletionMessageToolCallParam = {
         "id": "call_0",
         "type": "function",
         "function": {"name": "get_stock_news", "arguments": json.dumps({"ticker": prompt["ticker"]})},
@@ -159,7 +165,7 @@ def build_messages(prompt: dict, signal: list[str], noise: list[str], bust_prefi
     ]
 
 
-async def timed_stream_request(model: str, messages: list[dict], request: dict) -> RequestResult:
+async def timed_stream_request(model: str, messages: list[ChatCompletionMessageParam], request: dict) -> RequestResult:
     """Stream one completion to the end, timestamping the first token on the way.
 
     TTFT rule:
@@ -173,7 +179,6 @@ async def timed_stream_request(model: str, messages: list[dict], request: dict) 
     """
     # No response_format: the server validates structured output after
     # generation, which would land in end-to-end latency.
-    limits = {"max_tokens": request["max_tokens"]} if request["max_tokens"] else {}
     t0 = time.perf_counter()
     ttft = ttat = usage = finish = finish_s = None
     chunks = reasoning_chars = 0
@@ -186,7 +191,7 @@ async def timed_stream_request(model: str, messages: list[dict], request: dict) 
             # vllm-mlx extension; explicit because templates differ (Qwen3 thinks unless
             # told not to, Gemma 4 only when asked) and the server default is an env var.
             extra_body={"enable_thinking": request["enable_thinking"]},
-            **limits,
+            max_tokens=request["max_tokens"] or omit,  # null: field not sent, no limit
         )
         async for chunk in stream:
             if chunk.usage:
@@ -258,7 +263,7 @@ async def run_point(cfg: dict, request: dict, signal: list[str], noise: list[str
             "ok": r.ok,
             "prompt_tokens": r.prompt_tokens,
             "ttft_s": r.ttft_s,
-            #"ttat_s": r.ttat_s,
+            # "ttat_s": r.ttat_s,
             "e2e_s": r.e2e_s,
             "completion_tokens": r.completion_tokens,
             "chunks": r.chunks,
@@ -324,7 +329,9 @@ def write_rows(path: Path, rows: list[dict]) -> Path:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("config", type=Path, help="run config, e.g. benchmarks/configs/vllm-mlx/ttft-prefill-baseline.yaml")
+    parser.add_argument(
+        "config", type=Path, help="run config, e.g. benchmarks/configs/vllm-mlx/ttft-prefill-baseline.yaml"
+    )
     config_path = parser.parse_args().config.resolve()
     cfg = load_config(config_path)
     stamp = {**provenance(config_path), "model": cfg["server"]["model"]}

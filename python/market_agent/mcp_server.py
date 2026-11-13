@@ -8,9 +8,9 @@ source, just the existing functions in tools/ registered as MCP tools under
 their existing names/descriptions (see tools/registry.py), so the schema is
 not duplicated by hand.
 """
-import argparse
 
-from typing import Callable
+import argparse
+from collections.abc import Callable
 
 from fastmcp import FastMCP
 

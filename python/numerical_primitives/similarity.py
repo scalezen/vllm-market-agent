@@ -1,4 +1,5 @@
 """Reference numpy implementation of top-k search over cosine-similarity scores."""
+
 import numpy as np
 
 
