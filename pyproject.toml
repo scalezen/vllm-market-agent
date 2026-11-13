@@ -32,3 +32,27 @@ pythonpath = ["python", "benchmarks"]  # benchmarks/: ManagedServer for tests/te
 markers = [
     "slow: hits a live server + real model calls (see tests/test_agent_integration.py); skip with -m \"not slow\"",
 ]
+
+[tool.black]
+line-length = 120
+target-version = ["py311"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+extend-exclude = ["*.ipynb"]  # notebooks are exploratory; lint the code they import
+
+[tool.ruff.lint]
+# pycodestyle, pyflakes, bugbear, pyupgrade, import order. E501 is left to black:
+# it wraps code lines, and long strings and comments are allowed.
+select = ["E", "F", "B", "UP", "I"]
+ignore = ["E501"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["market_agent", "numerical_primitives", "benchmark_impl", "managed_server", "request_result"]
+
+[tool.mypy]
+python_version = "3.11"
+files = ["benchmarks", "python/market_agent", "scripts"]
+mypy_path = ["python", "benchmarks"]
+ignore_missing_imports = true  # yfinance, duckdb, fastmcp, ... ship no type stubs
