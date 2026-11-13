@@ -29,7 +29,7 @@ jobs:
       - run: python -c "import sys; sys.path.insert(0, 'python'); import numerical_primitives; assert 'native' in numerical_primitives.available_backends()"
       - run: pytest tests/test_numerical_primitives_similarity.py -v
 
-  load-config:
+  harness:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -37,4 +37,4 @@ jobs:
         with:
           python-version: '3.11'
       - run: pip install -e . pytest
-      - run: pytest tests/test_load_config.py -v
+      - run: pytest tests/test_load_config.py tests/test_build_messages.py -v
