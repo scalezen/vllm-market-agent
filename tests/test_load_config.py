@@ -1,4 +1,4 @@
-"""load_config: every committed config loads, and each kind of bad config is rejected."""
+"""load_config: tests to check if bad configs are rejected."""
 import copy
 
 import pytest
