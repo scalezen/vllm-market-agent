@@ -56,6 +56,7 @@ def _run_with(model: str, tool_parser: str, reasoning_parser: str, loop, monkeyp
         "prefix_cache": True,
         "kv_cache_quantization": False,
         "kv_cache_quantization_bits": None,
+        "stream_interval": None,
     }
     # agent.py binds MODEL_NAME at import; requests and the saved run must name the served model.
     monkeypatch.setattr(agent, "MODEL_NAME", model)
