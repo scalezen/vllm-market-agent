@@ -37,4 +37,4 @@ jobs:
         with:
           python-version: '3.11'
       - run: pip install -e . pytest
-      - run: pytest tests/test_load_config.py tests/test_build_messages.py -v
+      - run: pytest tests/test_load_config.py tests/test_build_messages.py tests/test_result_rows.py -v
