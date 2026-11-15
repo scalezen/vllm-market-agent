@@ -5,6 +5,7 @@ import subprocess
 import sys
 import time
 from pathlib import Path
+from typing import IO
 
 from market_agent.config import BASE_URL, client
 
@@ -19,7 +20,7 @@ def _server_reachable() -> bool:
 
 class ManagedServer:
     """Starts `script` with the config's server settings and waits until it is ready;
-    stops it on exit. Refuses to reuse a server it didn't start, so the recorded
+    stops it on exit. Fails if a server is already running, so the recorded
     config is always the one that served the requests."""
 
     def __init__(self, server: dict, script: Path, log_path: Path):
@@ -44,22 +45,31 @@ class ManagedServer:
         self.timeout_s = server["ready_timeout_s"]
         self.log_path = log_path
         self.proc: subprocess.Popen | None = None
+        self.log: IO[str] | None = None
 
     def __enter__(self) -> "ManagedServer":
         if _server_reachable():
             raise RuntimeError(f"Something is already serving on {BASE_URL}. Stop it first.")
-        log = self.log_path.open("w")
+        self.log = self.log_path.open("w")
         self.proc = subprocess.Popen(
-            [str(self.script)], cwd=self.script.parent, env=self.env, stdout=log, stderr=subprocess.STDOUT
+            [str(self.script)], cwd=self.script.parent, env=self.env, stdout=self.log, stderr=subprocess.STDOUT
         )
+        try:
+            self._wait_ready()
+        except BaseException:
+            self._stop()
+            raise
+        return self
+
+    def _wait_ready(self) -> None:
+        assert self.proc is not None
         deadline = time.monotonic() + self.timeout_s
         while time.monotonic() < deadline:
             if self.proc.poll() is not None:
                 raise RuntimeError(f"Server exited before it was ready; see {self.log_path}:\n{self._tail()}")
             if _server_reachable():
-                return self
+                return
             time.sleep(2)
-        self._stop()
         raise TimeoutError(f"Server not ready within {self.timeout_s}s; see {self.log_path}:\n{self._tail()}")
 
     def _tail(self, n: int = 20) -> str:
@@ -76,6 +86,9 @@ class ManagedServer:
             except subprocess.TimeoutExpired:
                 self.proc.kill()
                 self.proc.wait(timeout=15)
+        if self.log:
+            self.log.close()
+            self.log = None
 
     def __exit__(self, *exc_info) -> None:
         self._stop()
