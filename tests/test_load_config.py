@@ -60,9 +60,9 @@ def changed(edits):
 
 def test_valid_config_loads_and_is_normalised(tmp_path):
     cfg = load_config(write(tmp_path, VALID))
-    assert cfg["request"]["max_tokens"] == [2]  # int -> list, the run loop sweeps it
-    assert cfg["server"]["stream_interval"] is None  # optional, filled in
-    assert cfg["run"]["requests"] is None
+    assert cfg.request.max_tokens == [2]  # int -> list, the run loop sweeps it
+    assert cfg.server.stream_interval is None  # optional, filled in
+    assert cfg.run.requests is None
 
 
 @pytest.mark.parametrize("path", sorted(CONFIGS_DIR.rglob("*.yaml")), ids=lambda p: str(p.relative_to(CONFIGS_DIR)))
@@ -70,34 +70,46 @@ def test_committed_configs_load(path):
     load_config(path)
 
 
-# edits to VALID and the text the error must contain
+# edits to VALID and the text the error must contain: "<field path>: <reason>"
 BAD = {
     # structure
-    "missing section": ({"run": DELETE}, "needs exactly the sections"),
-    "unknown section": ({"extra": {}}, "needs exactly the sections"),
-    "section not a mapping": ({"server": ["a"]}, "[server] must be a mapping"),
-    "missing field": ({"server.model": DELETE}, "[server] needs exactly"),
-    "unknown field": ({"run.repz": 5}, "[run] needs exactly"),
+    "missing section": ({"run": DELETE}, "run: Field required"),
+    "unknown section": ({"extra": {}}, "extra: Extra inputs are not permitted"),
+    "section not a mapping": ({"server": ["a"]}, "server: Input should be a valid dictionary"),
+    "missing field": ({"server.model": DELETE}, "server.model: Field required"),
+    "unknown field": ({"run.repz": 5}, "run.repz: Extra inputs are not permitted"),
     # types
-    "string for int": ({"server.ready_timeout_s": "300"}, "server.ready_timeout_s = '300' has the wrong type"),
-    "bool for int": ({"run.reps": True}, "run.reps = True has the wrong type"),
-    "bool for str": ({"prompt.ticker": False}, "prompt.ticker = False has the wrong type (quote it)"),
+    "string for int": ({"server.ready_timeout_s": "300"}, "server.ready_timeout_s: Input should be a valid integer"),
+    "bool for int": ({"run.reps": True}, "run.reps: Input should be a valid integer"),
+    "bool for str": ({"prompt.ticker": False}, "prompt.ticker: Input should be a valid string (quote it)"),
     # values
-    "no noise levels": ({"prompt.noise_levels": []}, "prompt.noise_levels must be"),
-    "negative noise level": ({"prompt.noise_levels": [50, -1]}, "prompt.noise_levels must be"),
-    "zero concurrency": ({"run.concurrencies": [0]}, "run.concurrencies must be"),
-    "max_tokens without prefill_only": ({"request.prefill_only": False}, "max_tokens must be null unless prefill_only"),
-    "max_tokens zero": ({"request.max_tokens": 0}, "prefill_only needs max_tokens >= 1"),
-    "max_tokens repeated": ({"request.max_tokens": [2, 2]}, "prefill_only needs max_tokens >= 1"),
-    "zero ready timeout": ({"server.ready_timeout_s": 0}, "ready_timeout_s must be positive"),
-    "max_num_seqs without batching": ({"server.continuous_batching": False}, "max_num_seqs needs continuous_batching"),
+    "no noise levels": ({"prompt.noise_levels": []}, "prompt.noise_levels: List should have at least 1 item"),
+    "negative noise level": (
+        {"prompt.noise_levels": [50, -1]},
+        "prompt.noise_levels.1: Input should be greater than or equal to 0",
+    ),
+    "zero concurrency": ({"run.concurrencies": [0]}, "run.concurrencies.0: Input should be greater than 0"),
+    "max_tokens without prefill_only": (
+        {"request.prefill_only": False},
+        "request: Value error, max_tokens must be null unless prefill_only",
+    ),
+    "max_tokens zero": ({"request.max_tokens": 0}, "request: Value error, prefill_only needs max_tokens >= 1"),
+    "max_tokens repeated": ({"request.max_tokens": [2, 2]}, "request: Value error, prefill_only needs max_tokens >= 1"),
+    "zero ready timeout": ({"server.ready_timeout_s": 0}, "server.ready_timeout_s: Input should be greater than 0"),
+    "max_num_seqs without batching": (
+        {"server.continuous_batching": False},
+        "server: Value error, max_num_seqs needs continuous_batching",
+    ),
     "kv bits not 4 or 8": (
         {"server.kv_cache_quantization": True, "server.kv_cache_quantization_bits": 6},
-        "must be 4, 8 or null",
+        "server.kv_cache_quantization_bits: Input should be 4 or 8",
     ),
-    "kv bits without kv quant": ({"server.kv_cache_quantization_bits": 4}, "bits needs kv_cache_quantization"),
-    "zero stream_interval": ({"server.stream_interval": 0}, "stream_interval must be >= 1 or null"),
-    "requests below concurrency": ({"run.requests": 2}, "run.requests must be >= every concurrency"),
+    "kv bits without kv quant": (
+        {"server.kv_cache_quantization_bits": 4},
+        "server: Value error, kv_cache_quantization_bits needs kv_cache_quantization",
+    ),
+    "zero stream_interval": ({"server.stream_interval": 0}, "server.stream_interval: Input should be greater than 0"),
+    "requests below concurrency": ({"run.requests": 2}, "run: Value error, requests must be >= every concurrency"),
 }
 
 
