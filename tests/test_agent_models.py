@@ -20,6 +20,7 @@ from managed_server import ManagedServer, _server_reachable
 from market_agent import agent
 from market_agent.store import save_run
 from market_agent.tasks import TASKS
+from schemas.run_config import ServerConfig
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 SERVE_SCRIPT = REPO_ROOT / "benchmarks" / "serve.sh"
@@ -49,18 +50,18 @@ def loop():
 
 
 def _run_with(model: str, tool_parser: str, reasoning_parser: str, loop, monkeypatch, tmp_path) -> None:
-    server = {
-        "model": model,
-        "tool_call_parser": tool_parser,
-        "reasoning_parser": reasoning_parser,
-        "ready_timeout_s": READY_TIMEOUT_S,
-        "continuous_batching": False,
-        "max_num_seqs": None,
-        "prefix_cache": True,
-        "kv_cache_quantization": False,
-        "kv_cache_quantization_bits": None,
-        "stream_interval": None,
-    }
+    server = ServerConfig(
+        model=model,
+        tool_call_parser=tool_parser,
+        reasoning_parser=reasoning_parser,
+        serve_script=str(SERVE_SCRIPT),
+        ready_timeout_s=READY_TIMEOUT_S,
+        continuous_batching=False,
+        max_num_seqs=None,
+        prefix_cache=True,
+        kv_cache_quantization=False,
+        kv_cache_quantization_bits=None,
+    )
     # agent.py binds MODEL_NAME at import; requests and the saved run must name the served model.
     monkeypatch.setattr(agent, "MODEL_NAME", model)
     with ManagedServer(server, SERVE_SCRIPT, tmp_path / "serve.log"):

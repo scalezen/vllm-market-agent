@@ -34,6 +34,6 @@ are appended to the CSV of the same name under `benchmarks/results/vllm-mlx/`.
 
 | Path | Status |
 |---|---|
-| `benchmarks/` (`benchmark_impl.py`, `run_benchmarks.py`, `managed_server.py`, `request_result.py`) | Benchmark harness: the engineered part |
+| `benchmarks/` (`benchmark_impl.py`, `run_benchmarks.py`, `managed_server.py`, `schemas/`) | Benchmark harness: the engineered part |
 | `benchmarks/configs/`, `benchmarks/results/` | One YAML config per experiment, and its committed results |
 | `python/market_agent/` | Sentiment agent: scaffolding that generates the workload |
