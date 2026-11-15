@@ -22,101 +22,32 @@ import duckdb
 import yaml
 from openai import omit
 from openai.types.chat import ChatCompletionMessageParam, ChatCompletionMessageToolCallParam
+from pydantic import ValidationError
+from pydantic_core import ErrorDetails
 
 from managed_server import ManagedServer
 from market_agent.config import aclient
-from request_result import RequestResult
+from schemas.request_result import RequestResult
+from schemas.run_config import BenchmarkConfig, PromptConfig, RequestConfig
 
 # Config paths are relative to the repo root.
 REPO_ROOT = Path(__file__).resolve().parent.parent
 CONFIGS_DIR = REPO_ROOT / "benchmarks" / "configs"
 
-OPTIONAL_INT = (int, type(None))
-# section -> field -> allowed type(s), as isinstance() takes them
-SCHEMA: dict[str, dict[str, type | tuple[type, ...]]] = {
-    "server": {
-        "model": str,
-        "tool_call_parser": str,
-        "reasoning_parser": str,
-        "serve_script": str,
-        "ready_timeout_s": int,
-        "continuous_batching": bool,
-        "max_num_seqs": OPTIONAL_INT,
-        "prefix_cache": bool,
-        "kv_cache_quantization": bool,
-        "kv_cache_quantization_bits": OPTIONAL_INT,
-        "stream_interval": OPTIONAL_INT,
-    },
-    "prompt": {
-        "ticker": str,
-        "signal_file": str,
-        "noise_file": str,
-        "noise_levels": list,
-        "system": str,
-        "user": str,
-        "report": str,
-    },
-    # max_tokens: an int, a list of ints (swept, e.g. for TPOT), or null.
-    "request": {"prefill_only": bool, "max_tokens": (int, list, type(None)), "enable_thinking": bool},
-    # requests: total requests per point, at most `concurrency` in flight; null = concurrency.
-    "run": {"concurrencies": list, "reps": int, "requests": OPTIONAL_INT, "results_dir": str},
-}
-# May be omitted (read as null), so configs written before the field existed keep
-# their config_sha and still match their committed results.
-OPTIONAL_FIELDS = {("server", "stream_interval"), ("run", "requests")}
+
+def load_config(path: Path) -> BenchmarkConfig:
+    """Parse and validate a run config (fields and rules: schemas/run_config.py)."""
+    try:
+        return BenchmarkConfig.model_validate(yaml.safe_load(path.read_text()))
+    except ValidationError as exc:
+        raise ValueError(f"{path}:\n" + "\n".join(_describe(e) for e in exc.errors())) from exc
 
 
-def load_config(path: Path) -> dict:
-    """Parse and validate a run config; every field except OPTIONAL_FIELDS is required,
-    unknown fields are rejected."""
-    cfg = yaml.safe_load(path.read_text())
-    if not isinstance(cfg, dict) or set(cfg) != set(SCHEMA):
-        raise ValueError(f"{path}: needs exactly the sections {sorted(SCHEMA)}")
-    for section, fields in SCHEMA.items():
-        if not isinstance(cfg[section], dict):
-            raise ValueError(f"{path}: [{section}] must be a mapping")
-        for sec, key in OPTIONAL_FIELDS:
-            if sec == section:
-                cfg[section].setdefault(key, None)
-        if set(cfg[section]) != set(fields):
-            raise ValueError(f"{path}: [{section}] needs exactly {sorted(fields)}")
-        for key, kind in fields.items():
-            value = cfg[section][key]
-            # bool is an int subclass, and YAML 1.1 reads e.g. ON/NO as booleans.
-            if not isinstance(value, kind) or (isinstance(value, bool) and kind is not bool):
-                hint = " (quote it)" if kind is str else ""
-                raise ValueError(f"{path}: {section}.{key} = {value!r} has the wrong type{hint}")
-    levels, concurrencies = cfg["prompt"]["noise_levels"], cfg["run"]["concurrencies"]
-    if not levels or not all(type(n) is int and n >= 0 for n in levels):
-        raise ValueError(f"{path}: prompt.noise_levels must be a non-empty list of non-negative ints")
-    if not concurrencies or not all(type(n) is int and n >= 1 for n in concurrencies):
-        raise ValueError(f"{path}: run.concurrencies must be a non-empty list of positive ints")
-    server = cfg["server"]
-    request = cfg["request"]
-    if not request["prefill_only"] and request["max_tokens"] is not None:
-        raise ValueError(f"{path}: request.max_tokens must be null unless prefill_only")
-    # Normalise to a list: the run loop sweeps it; null (full generation) becomes [None].
-    tokens = request["max_tokens"]
-    tokens = tokens if isinstance(tokens, list) else [tokens]
-    if request["prefill_only"] and not (
-        tokens and all(type(n) is int and n >= 1 for n in tokens) and len(set(tokens)) == len(tokens)
-    ):
-        raise ValueError(f"{path}: request.prefill_only needs max_tokens >= 1 (an int or a list of unique ints)")
-    request["max_tokens"] = tokens
-    if server["ready_timeout_s"] < 1:
-        raise ValueError(f"{path}: server.ready_timeout_s must be positive")
-    if server["max_num_seqs"] is not None and not server["continuous_batching"]:
-        raise ValueError(f"{path}: server.max_num_seqs needs continuous_batching")
-    if server["kv_cache_quantization_bits"] not in (None, 4, 8):
-        raise ValueError(f"{path}: server.kv_cache_quantization_bits must be 4, 8 or null")
-    if server["kv_cache_quantization_bits"] is not None and not server["kv_cache_quantization"]:
-        raise ValueError(f"{path}: server.kv_cache_quantization_bits needs kv_cache_quantization")
-    if server["stream_interval"] is not None and server["stream_interval"] < 1:
-        raise ValueError(f"{path}: server.stream_interval must be >= 1 or null")
-    n_requests = cfg["run"]["requests"]
-    if n_requests is not None and n_requests < max(concurrencies):
-        raise ValueError(f"{path}: run.requests must be >= every concurrency, or null")
-    return cfg
+def _describe(error: ErrorDetails) -> str:
+    where = ".".join(str(part) for part in error["loc"]) or "config"
+    # YAML 1.1 reads unquoted NO, ON, YES, OFF as booleans.
+    hint = " (quote it)" if error["type"] == "string_type" and isinstance(error["input"], bool) else ""
+    return f"  {where}: {error['msg']}{hint}"
 
 
 def _run(*cmd: str) -> str:
@@ -146,26 +77,28 @@ def _titles(path: Path, limit: int | None = None) -> list[str]:
 
 
 def build_messages(
-    prompt: dict, signal: list[str], noise: list[str], bust_prefix_cache: bool
+    prompt: PromptConfig, signal: list[str], noise: list[str], bust_prefix_cache: bool
 ) -> list[ChatCompletionMessageParam]:
     # A unique id at the very front makes every prompt distinct from its first
     # token, so no request reuses another's cached KV and TTFT is a cold prefill.
-    system = f"[request {uuid.uuid4().hex[:8]}] {prompt['system']}" if bust_prefix_cache else prompt["system"]
+    system = f"[request {uuid.uuid4().hex[:8]}] {prompt.system}" if bust_prefix_cache else prompt.system
     tool_call: ChatCompletionMessageToolCallParam = {
         "id": "call_0",
         "type": "function",
-        "function": {"name": "get_stock_news", "arguments": json.dumps({"ticker": prompt["ticker"]})},
+        "function": {"name": "get_stock_news", "arguments": json.dumps({"ticker": prompt.ticker})},
     }
     return [
         {"role": "system", "content": system},
-        {"role": "user", "content": prompt["user"].format(ticker=prompt["ticker"])},
+        {"role": "user", "content": prompt.user.format(ticker=prompt.ticker)},
         {"role": "assistant", "content": None, "tool_calls": [tool_call]},
         {"role": "tool", "tool_call_id": "call_0", "content": "\n".join(noise + signal)},
-        {"role": "user", "content": prompt["report"]},
+        {"role": "user", "content": prompt.report},
     ]
 
 
-async def timed_stream_request(model: str, messages: list[ChatCompletionMessageParam], request: dict) -> RequestResult:
+async def timed_stream_request(
+    model: str, messages: list[ChatCompletionMessageParam], request: RequestConfig, max_tokens: int | None
+) -> RequestResult:
     """Stream one completion to the end, timestamping the first token on the way.
 
     TTFT rule:
@@ -190,8 +123,8 @@ async def timed_stream_request(model: str, messages: list[ChatCompletionMessageP
             stream_options={"include_usage": True},
             # vllm-mlx extension; explicit because templates differ (Qwen3 thinks unless
             # told not to, Gemma 4 only when asked) and the server default is an env var.
-            extra_body={"enable_thinking": request["enable_thinking"]},
-            max_tokens=request["max_tokens"] or omit,  # null: field not sent, no limit
+            extra_body={"enable_thinking": request.enable_thinking},
+            max_tokens=max_tokens or omit,  # null: field not sent, no limit
         )
         async for chunk in stream:
             if chunk.usage:
@@ -215,10 +148,10 @@ async def timed_stream_request(model: str, messages: list[ChatCompletionMessageP
     except Exception as exc:  # 503s under load, context overflow, timeouts are results too
         return RequestResult(ok=False, e2e_s=time.perf_counter() - t0, error=str(exc)[:150])
     completion = usage.completion_tokens if usage else None
-    if request["prefill_only"]:
+    if request.prefill_only and max_tokens is not None:
         # Stamp only if all max_tokens were generated: a stream can end cleanly
         # with no tokens (seen at ~22k-token prompts).
-        ttft = finish_s if completion is not None and completion >= request["max_tokens"] else None
+        ttft = finish_s if completion is not None and completion >= max_tokens else None
     return RequestResult(
         ok=ttft is not None,
         e2e_s=time.perf_counter() - t0,
@@ -232,30 +165,33 @@ async def timed_stream_request(model: str, messages: list[ChatCompletionMessageP
     )
 
 
-async def run_point(cfg: dict, request: dict, signal: list[str], noise: list[str], concurrency: int) -> list[dict]:
-    """Send run.requests requests (default: `concurrency`), at most `concurrency` in
-    flight; the next starts as soon as one finishes. One row per request.
+async def run_sweep_point(
+    cfg: BenchmarkConfig, max_tokens: int | None, signal: list[str], noise: list[str], concurrency: int
+) -> list[dict]:
+    """Run one sweep point which is one combination of noise level (prompt length),
+    max_tokens and concurrency, for one rep. Sends run.requests requests with
+    at most `concurrency` in flight; the next starts as soon as one finishes.
 
-    `request` is cfg["request"] with max_tokens set to this point's single value.
+    `max_tokens` is this point's single value from cfg.request.max_tokens.
     start_s is when the request was sent, from the start of the point, so the point's
     wall time is max(start_s + e2e_s). e2e_s and ttft_s run from start_s.
     """
-    bust = not cfg["server"]["prefix_cache"]
+    bust = not cfg.server.prefix_cache
     in_flight = asyncio.Semaphore(concurrency)
     t_point = time.perf_counter()
 
     async def one() -> tuple[float, RequestResult]:
         async with in_flight:
             start = time.perf_counter() - t_point
-            messages = build_messages(cfg["prompt"], signal, noise, bust)
-            return start, await timed_stream_request(cfg["server"]["model"], messages, request)
+            messages = build_messages(cfg.prompt, signal, noise, bust)
+            return start, await timed_stream_request(cfg.server.model, messages, cfg.request, max_tokens)
 
-    results = await asyncio.gather(*(one() for _ in range(cfg["run"]["requests"] or concurrency)))
+    results = await asyncio.gather(*(one() for _ in range(cfg.run.requests or concurrency)))
     return [
         {
-            "prefill_only": request["prefill_only"],
-            "max_tokens": request["max_tokens"],
-            "enable_thinking": request["enable_thinking"],
+            "prefill_only": cfg.request.prefill_only,
+            "max_tokens": max_tokens,
+            "enable_thinking": cfg.request.enable_thinking,
             "noise_headlines": len(noise),
             "concurrency": concurrency,
             "request": i,
@@ -274,31 +210,33 @@ async def run_point(cfg: dict, request: dict, signal: list[str], noise: list[str
     ]
 
 
-async def run_all(cfg: dict, stamp: dict) -> list[dict]:
-    prompt = cfg["prompt"]
-    signal = _titles(REPO_ROOT / prompt["signal_file"])
-    pool = _titles(REPO_ROOT / prompt["noise_file"], max(prompt["noise_levels"]))
+async def run_sweep(cfg: BenchmarkConfig, stamp: dict) -> list[dict]:
+    prompt = cfg.prompt
+    signal_headlines = _titles(REPO_ROOT / prompt.signal_file)
+    noise_headlines = _titles(REPO_ROOT / prompt.noise_file, max(prompt.noise_levels))
     # Discarded: first-request overheads (weights paged in, kernels compiled).
     warmup = await timed_stream_request(
-        cfg["server"]["model"],
-        build_messages(prompt, signal, pool[: min(prompt["noise_levels"])], True),
-        {**cfg["request"], "max_tokens": cfg["request"]["max_tokens"][0]},
+        cfg.server.model,
+        build_messages(prompt, signal_headlines, noise_headlines[: min(prompt.noise_levels)], True),
+        cfg.request,
+        cfg.request.max_tokens[0],
     )
     print(f"warm-up: ok={warmup.ok} e2e={warmup.e2e_s:.2f}s {warmup.error}")
     rows = []
-    for n_noise in prompt["noise_levels"]:
-        for max_tokens in cfg["request"]["max_tokens"]:
-            request = {**cfg["request"], "max_tokens": max_tokens}
-            for concurrency in cfg["run"]["concurrencies"]:
-                for rep in range(cfg["run"]["reps"]):
-                    for row in await run_point(cfg, request, signal, pool[:n_noise], concurrency):
+    for n_noise in prompt.noise_levels:
+        for max_tokens in cfg.request.max_tokens:
+            for concurrency in cfg.run.concurrencies:
+                for rep in range(cfg.run.reps):
+                    for row in await run_sweep_point(
+                        cfg, max_tokens, signal_headlines, noise_headlines[:n_noise], concurrency
+                    ):
                         row = {**stamp, "rep": rep, **row}
                         print(row)
                         rows.append(row)
     return rows
 
 
-def results_path(cfg: dict, config_path: Path) -> Path:
+def results_path(cfg: BenchmarkConfig, config_path: Path) -> Path:
     """results_dir/<config's subfolder under benchmarks/configs>/<config stem>.csv.
 
     Configs are grouped by serving stack (e.g. configs/vllm-mlx/); results mirror
@@ -306,7 +244,7 @@ def results_path(cfg: dict, config_path: Path) -> Path:
     config between folders doesn't change its bytes or its config_sha."""
     parent = config_path.parent
     sub = parent.relative_to(CONFIGS_DIR) if parent.is_relative_to(CONFIGS_DIR) else Path()
-    return REPO_ROOT / cfg["run"]["results_dir"] / sub / f"{config_path.stem}.csv"
+    return REPO_ROOT / cfg.run.results_dir / sub / f"{config_path.stem}.csv"
 
 
 def write_rows(path: Path, rows: list[dict]) -> Path:
@@ -334,11 +272,11 @@ def main() -> None:
     )
     config_path = parser.parse_args().config.resolve()
     cfg = load_config(config_path)
-    stamp = {**provenance(config_path), "model": cfg["server"]["model"]}
+    stamp = {**provenance(config_path), "model": cfg.server.model}
 
-    script = REPO_ROOT / cfg["server"]["serve_script"]
-    with ManagedServer(cfg["server"], script, Path(f"/tmp/bench_serve_{config_path.stem}.log")):
-        rows = asyncio.run(run_all(cfg, stamp))
+    script = REPO_ROOT / cfg.server.serve_script
+    with ManagedServer(cfg.server, script, Path(f"/tmp/bench_serve_{config_path.stem}.log")):
+        rows = asyncio.run(run_sweep(cfg, stamp))
     results = results_path(cfg, config_path)
     print(f"wrote {write_rows(results, rows)}")
 

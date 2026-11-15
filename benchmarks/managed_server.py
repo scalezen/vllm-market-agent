@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import IO
 
 from market_agent.config import BASE_URL, client
+from schemas.run_config import ServerConfig
 
 
 def _server_reachable() -> bool:
@@ -23,26 +24,26 @@ class ManagedServer:
     stops it on exit. Fails if a server is already running, so the recorded
     config is always the one that served the requests."""
 
-    def __init__(self, server: dict, script: Path, log_path: Path):
+    def __init__(self, server: ServerConfig, script: Path, log_path: Path):
         # vllm-mlx lives next to whatever Python runs this script; put that directory
         # first so the serve script finds it even without an activated environment.
         env_bin = str(Path(sys.executable).parent)
-        bits = server["kv_cache_quantization_bits"]
+        bits = server.kv_cache_quantization_bits
         self.env = {
             **os.environ,
             "PATH": f"{env_bin}:{os.environ.get('PATH', '')}",
-            "MODEL": server["model"],
-            "PARSER": server["tool_call_parser"],
-            "REASONING_PARSER": server["reasoning_parser"],
-            "CONTINUOUS_BATCHING": "true" if server["continuous_batching"] else "false",
-            "MAX_NUM_SEQS": str(server["max_num_seqs"] or ""),
-            "KV_CACHE_QUANTIZATION": "true" if server["kv_cache_quantization"] else "false",
+            "MODEL": server.model,
+            "PARSER": server.tool_call_parser,
+            "REASONING_PARSER": server.reasoning_parser,
+            "CONTINUOUS_BATCHING": "true" if server.continuous_batching else "false",
+            "MAX_NUM_SEQS": str(server.max_num_seqs or ""),
+            "KV_CACHE_QUANTIZATION": "true" if server.kv_cache_quantization else "false",
             "KV_CACHE_QUANTIZATION_BITS": str(bits or ""),
-            "PREFIX_CACHE": "true" if server["prefix_cache"] else "false",
-            "STREAM_INTERVAL": str(server["stream_interval"] or ""),
+            "PREFIX_CACHE": "true" if server.prefix_cache else "false",
+            "STREAM_INTERVAL": str(server.stream_interval or ""),
         }
         self.script = script
-        self.timeout_s = server["ready_timeout_s"]
+        self.timeout_s = server.ready_timeout_s
         self.log_path = log_path
         self.proc: subprocess.Popen | None = None
         self.log: IO[str] | None = None

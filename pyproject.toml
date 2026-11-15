@@ -49,7 +49,7 @@ select = ["E", "F", "B", "UP", "I"]
 ignore = ["E501"]
 
 [tool.ruff.lint.isort]
-known-first-party = ["market_agent", "numerical_primitives", "benchmark_impl", "managed_server", "request_result"]
+known-first-party = ["market_agent", "numerical_primitives", "benchmark_impl", "managed_server", "schemas"]
 
 [tool.mypy]
 python_version = "3.11"
