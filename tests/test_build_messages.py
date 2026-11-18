@@ -3,8 +3,8 @@
 import json
 import re
 
-from benchmark_impl import build_messages
-from schemas.run_config import PromptConfig
+from bench_harness.benchmark_impl import build_messages
+from bench_harness.schemas.run_config import PromptConfig
 
 PROMPT = PromptConfig(
     ticker="WMT",

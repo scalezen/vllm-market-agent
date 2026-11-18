@@ -5,7 +5,7 @@ import copy
 import pytest
 import yaml
 
-from benchmark_impl import CONFIGS_DIR, load_config
+from bench_harness.benchmark_impl import CONFIGS_DIR, load_config
 
 # Smallest valid config; each bad case below changes one thing in it.
 VALID = {
