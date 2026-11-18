@@ -20,7 +20,7 @@ EMBED_MODEL="${EMBED_MODEL:-mlx-community/embeddinggemma-300m-6bit}"
 # Off by default (config A / baseline): vllm-mlx then runs one generation at a
 # time (see LLM_CONCURRENCY in config.py, which serializes client-side to match).
 # Set to "true" for config B, and raise LLM_CONCURRENCY to match MAX_NUM_SEQS
-# when running the agent against it. See benchmarks/run_benchmarks.py for running configs.
+# when running the agent against it. See python/bench_harness/run_benchmarks.py for running configs.
 CONTINUOUS_BATCHING="${CONTINUOUS_BATCHING:-false}"
 # Cap on concurrent sequences the scheduler will admit into one batch; only
 # meaningful with CONTINUOUS_BATCHING=true. Unset uses vllm-mlx's own default.
