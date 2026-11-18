@@ -10,6 +10,7 @@ on:
       - 'cpp/numerical_primitives/**'
       - 'python/numerical_primitives/**'
       - 'benchmarks/**'
+      - 'python/bench_harness/**'
       - 'tests/**'
       - 'python/market_agent/**'
       - 'scripts/**'
