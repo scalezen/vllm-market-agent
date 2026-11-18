@@ -1,6 +1,6 @@
 """TTFT and end-to-end latency vs. prompt length, one run per YAML config.
 
-    python benchmarks/benchmark_impl.py benchmarks/configs/vllm-mlx/ttft-prefill-baseline.yaml
+    python -m bench_harness.benchmark_impl benchmarks/configs/vllm-mlx/ttft-prefill-baseline.yaml
 
 Starts benchmarks/serve.sh with the config's server settings, streams each request,
 and appends one row per request to benchmarks/results/<config name>.csv. Each row
@@ -25,13 +25,13 @@ from openai.types.chat import ChatCompletionMessageParam, ChatCompletionMessageT
 from pydantic import ValidationError
 from pydantic_core import ErrorDetails
 
-from managed_server import ManagedServer
+from bench_harness.managed_server import ManagedServer
+from bench_harness.schemas.request_result import RequestResult
+from bench_harness.schemas.run_config import BenchmarkConfig, PromptConfig, RequestConfig
 from market_agent.config import aclient
-from schemas.request_result import RequestResult
-from schemas.run_config import BenchmarkConfig, PromptConfig, RequestConfig
 
 # Config paths are relative to the repo root.
-REPO_ROOT = Path(__file__).resolve().parent.parent
+REPO_ROOT = Path(__file__).resolve().parents[2]
 CONFIGS_DIR = REPO_ROOT / "benchmarks" / "configs"
 
 

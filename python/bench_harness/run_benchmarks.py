@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Run benchmark_impl.py once per config, in order.
 
-    python benchmarks/run_benchmarks.py benchmarks/configs/vllm-mlx/*.yaml
+    python -m bench_harness.run_benchmarks benchmarks/configs/vllm-mlx/*.yaml
 
 Each config runs in a fresh process, so nothing carries over between runs: no
 memory held by the last run, and no client tied to a closed event loop or a
@@ -14,8 +14,6 @@ import sys
 import time
 from pathlib import Path
 
-BENCHMARKS_DIR = Path(__file__).resolve().parent
-
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -23,7 +21,7 @@ def main() -> None:
     configs = parser.parse_args().configs
 
     for i, config in enumerate(configs):
-        cmd = [sys.executable, str(BENCHMARKS_DIR / "benchmark_impl.py"), str(config)]
+        cmd = [sys.executable, "-m", "bench_harness.benchmark_impl", str(config)]
         print(f"\n=== {i + 1}/{len(configs)}: {config.name} ===\n+ {' '.join(cmd)}")
         subprocess.run(cmd, check=True)
         if i + 1 < len(configs):
