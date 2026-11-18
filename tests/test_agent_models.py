@@ -16,11 +16,11 @@ from pathlib import Path
 
 import pytest
 
-from managed_server import ManagedServer, _server_reachable
+from bench_harness.managed_server import ManagedServer, _server_reachable
+from bench_harness.schemas.run_config import ServerConfig
 from market_agent import agent
 from market_agent.store import save_run
 from market_agent.tasks import TASKS
-from schemas.run_config import ServerConfig
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 SERVE_SCRIPT = REPO_ROOT / "benchmarks" / "serve.sh"

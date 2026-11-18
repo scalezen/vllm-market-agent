@@ -7,8 +7,8 @@ import time
 from pathlib import Path
 from typing import IO
 
+from bench_harness.schemas.run_config import ServerConfig
 from market_agent.config import BASE_URL, client
-from schemas.run_config import ServerConfig
 
 
 def _server_reachable() -> bool:
