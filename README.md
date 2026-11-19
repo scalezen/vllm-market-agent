@@ -4,7 +4,7 @@
 [![nightly](https://github.com/scalezen/vllm-market-agent/actions/workflows/nightly.yml/badge.svg)](https://github.com/scalezen/vllm-market-agent/actions/workflows/nightly.yml)
 
 Measurements of LLM inference serving: performance profile of prefill and decode with respect to
-number of input tokens and decoded output tokens,, and impact of
+number of input tokens and decoded output tokens, and impact of
 continuous batching. A stock-news sentiment agent supplies the prompts.
 
 ## Setup
