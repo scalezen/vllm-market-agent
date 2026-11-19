@@ -3,8 +3,9 @@
 [![ci](https://github.com/scalezen/vllm-market-agent/actions/workflows/ci.yml/badge.svg)](https://github.com/scalezen/vllm-market-agent/actions/workflows/ci.yml)
 [![nightly](https://github.com/scalezen/vllm-market-agent/actions/workflows/nightly.yml/badge.svg)](https://github.com/scalezen/vllm-market-agent/actions/workflows/nightly.yml)
 
-Measurements of LLM inference serving: where the time goes in prefill and decode, and what
-continuous batching gives. A stock-news sentiment agent supplies the prompts.
+Measurements of LLM inference serving: performance profile of prefill and decode with respect to
+number of input tokens and decoded output tokens,, and impact of
+continuous batching. A stock-news sentiment agent supplies the prompts.
 
 ## Setup
 
@@ -40,8 +41,8 @@ python -m pytest tests -m "not slow"
 
 | Path | Status |
 |---|---|
-| `python/bench_harness/` (`benchmark_impl.py`, `run_benchmarks.py`, `managed_server.py`, `schemas/`) | Benchmark harness: the engineered part |
-| `benchmarks/configs/`, `benchmarks/results/` | One YAML config per experiment, and its committed results |
+| `python/bench_harness/` (`benchmark_impl.py`, `run_benchmarks.py`, `managed_server.py`, `schemas/`) | Benchmark harness |
+| `benchmarks/configs/`, `benchmarks/results/` | One YAML config per experiment, and corresponding results |
 | `benchmarks/notebooks/` | Analysis of the committed results: fits, tables and plots |
 | `tests/` | Unit tests for the harness (config validation, prompt building), the similarity kernel and the agent's tools. Agent tests that need a live server are marked `slow` |
 | `python/market_agent/` | Sentiment agent: scaffolding that generates the workload |
