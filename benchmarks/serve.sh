@@ -5,13 +5,14 @@
 # Default model: Qwen3-4B (4-bit, ~2.3 GB) - more reliable tool calling than Llama 3.2 3B.
 # The reasoning parser moves the model's thinking (Qwen3: <think>...</think>) out of
 # the answer into a separate `reasoning` field. Both parsers are model-specific.
+# REASONING_PARSER= (empty) for a model with no thinking mode, e.g. Llama 3.2.
 #
 # Override without editing, e.g. the smaller model:
 #   MODEL=mlx-community/Qwen3-1.7B-4bit benchmarks/serve.sh
 # (then run the agent with VLLM_MODEL set to the same model name)
 MODEL="${MODEL:-mlx-community/Qwen3-4B-4bit}"
 PARSER="${PARSER:-qwen}"
-REASONING_PARSER="${REASONING_PARSER:-qwen3}"
+REASONING_PARSER="${REASONING_PARSER-qwen3}"
 PORT="${PORT:-8010}"
 # Embedding model served on /v1/embeddings; the agent uses it to de-duplicate headlines.
 # (Set the same EMBED_MODEL when running the agent if you change it.)
@@ -44,9 +45,9 @@ ARGS=(
   --port "$PORT"
   --enable-auto-tool-choice
   --tool-call-parser "$PARSER"
-  --reasoning-parser "$REASONING_PARSER"
   --embedding-model "$EMBED_MODEL"
 )
+[[ -n "$REASONING_PARSER" ]] && ARGS+=(--reasoning-parser "$REASONING_PARSER")
 [[ "$CONTINUOUS_BATCHING" == "true" ]] && ARGS+=(--continuous-batching)
 [[ -n "$MAX_NUM_SEQS" ]] && ARGS+=(--max-num-seqs "$MAX_NUM_SEQS")
 [[ "$KV_CACHE_QUANTIZATION" == "true" ]] && ARGS+=(--kv-cache-quantization)

@@ -34,7 +34,7 @@ class ManagedServer:
             "PATH": f"{env_bin}:{os.environ.get('PATH', '')}",
             "MODEL": server.model,
             "PARSER": server.tool_call_parser,
-            "REASONING_PARSER": server.reasoning_parser,
+            "REASONING_PARSER": server.reasoning_parser or "",
             "CONTINUOUS_BATCHING": "true" if server.continuous_batching else "false",
             "MAX_NUM_SEQS": str(server.max_num_seqs or ""),
             "KV_CACHE_QUANTIZATION": "true" if server.kv_cache_quantization else "false",
