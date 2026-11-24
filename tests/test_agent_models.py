@@ -9,6 +9,7 @@ the connection is slow.
     python -m pytest tests/test_agent_models.py -v -s
     python -m pytest tests/test_agent_models.py::test_qwen -v -s
     python -m pytest tests/test_agent_models.py::test_gemma -v -s
+    python -m pytest tests/test_agent_models.py::test_llama -v -s
 """
 
 import asyncio
@@ -49,7 +50,7 @@ def loop():
     loop.close()
 
 
-def _run_with(model: str, tool_parser: str, reasoning_parser: str, loop, monkeypatch, tmp_path) -> None:
+def _run_with(model: str, tool_parser: str, reasoning_parser: str | None, loop, monkeypatch, tmp_path) -> None:
     server = ServerConfig(
         model=model,
         tool_call_parser=tool_parser,
@@ -80,9 +81,14 @@ def _run_with(model: str, tool_parser: str, reasoning_parser: str, loop, monkeyp
 #   Qwen3-4B:    ~4.0B parameters, ~4B used per token, 2.1 GB on disk.
 #   Gemma 4 E2B: ~4.6B parameters, ~2B used per token ("effective 2B"; the rest are
 #                per-layer embedding tables, looked up rather than multiplied), 2.5 GB on disk.
+#   Llama 3.2 3B: ~3.2B parameters, all used per token, no thinking mode, 1.8 GB on disk.
 def test_qwen(loop, monkeypatch, tmp_path):
     _run_with("mlx-community/Qwen3-4B-4bit", "qwen", "qwen3", loop, monkeypatch, tmp_path)
 
 
 def test_gemma(loop, monkeypatch, tmp_path):
     _run_with("mlx-community/Gemma4-E2B-IT-Text-int4", "gemma4", "gemma4", loop, monkeypatch, tmp_path)
+
+
+def test_llama(loop, monkeypatch, tmp_path):
+    _run_with("mlx-community/Llama-3.2-3B-Instruct-4bit", "llama", None, loop, monkeypatch, tmp_path)

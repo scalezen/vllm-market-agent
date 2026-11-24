@@ -13,7 +13,7 @@ class _Section(BaseModel):
 class ServerConfig(_Section):
     model: str
     tool_call_parser: str
-    reasoning_parser: str
+    reasoning_parser: str | None
     serve_script: str
     ready_timeout_s: PositiveInt
     continuous_batching: bool
