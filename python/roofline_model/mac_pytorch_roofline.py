@@ -8,19 +8,21 @@ BYTES_TO_DTYPE: dict[int, torch.dtype] = {
     8: torch.float64,
 }
 
-PEAK_FLOPS = 2.6e12   # FLOP/s, M1 GPU
-PEAK_BW = 68e9        # bytes/s
+PEAK_FLOPS = 2.6e12  # FLOP/s, M1 GPU
+PEAK_BW = 68e9  # bytes/s
 
 # Choose "mps" for Apple Silicon GPU, or "cpu" for CPU + AMX/AVX
-float_bytes = 4 # 16-bit float
+float_bytes = 4  # 16-bit float
 device = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
 dtype = BYTES_TO_DTYPE[float_bytes]
+
 
 def sync():
     if device.type == "mps":
         torch.mps.synchronize()
 
-def measure_peak_bandwidth()->float:
+
+def measure_peak_bandwidth() -> float:
 
     vec_len = 100_000
     vA = torch.randn(vec_len, device=device, dtype=dtype)
@@ -41,7 +43,7 @@ def measure_peak_bandwidth()->float:
 
     # Memory accessed: float_bytes*3*vec_len
     total_bytes = 3 * float_bytes * vec_len
-    peak_bandwidth_gbps =  total_bytes / min(times) / 1.0e9 # use min time
+    peak_bandwidth_gbps = total_bytes / min(times) / 1.0e9  # use min time
 
     # Clear large memory allocation
     del vA, vB, vC
@@ -50,7 +52,8 @@ def measure_peak_bandwidth()->float:
 
     return peak_bandwidth_gbps
 
-def measure_gflops()->float:
+
+def measure_gflops() -> float:
 
     sizes = [128, 256, 512, 1024, 2058, 3072, 4096, 6144, 8192]
     result_runtime: dict[int, float] = {}
@@ -61,7 +64,7 @@ def measure_gflops()->float:
 
         # Warmup
         for _ in range(5):
-            C = A @ B
+            A @ B
         sync()
 
         # Benchmark
@@ -70,10 +73,8 @@ def measure_gflops()->float:
         for _ in range(runs):
             sync()
             start = time.perf_counter()
-            C = A @ B
+            A @ B
             sync()
             runtimes.append(time.perf_counter() - start)
-            elapsed = (time.perf_counter() - start) / runs
 
         result_runtime[N] = min(runtimes)
-
