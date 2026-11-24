@@ -8,11 +8,9 @@ on:
     branches: [main]
     paths:
       - 'cpp/numerical_primitives/**'
-      - 'python/numerical_primitives/**'
+      - 'python/**'
       - 'benchmarks/**'
-      - 'python/bench_harness/**'
       - 'tests/**'
-      - 'python/market_agent/**'
       - 'scripts/**'
       - 'pyproject.toml'
       - '.github/workflows/ci.yml'
